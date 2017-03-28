@@ -36,7 +36,7 @@ from cozmo.util import radians
 
 # ROS
 import rospy
-from transformations import quaternion_from_euler
+from transformations import quaternion_from_euler, quaternion_matrix, quaternion_from_matrix
 from camera_info_manager import CameraInfoManager
 
 # ROS msgs
@@ -129,6 +129,7 @@ class CozmoRos(object):
         self._optical_frame_orientation = quaternion_from_euler(-np.pi/2., .0, -np.pi/2.)
         self._camera_info_manager = CameraInfoManager('cozmo_camera', namespace='/cozmo_camera')
         self._last_seen_cube = []
+        self.cubes_visible = 0
 
         # tf
         self._tfb = TransformBroadcaster()
@@ -237,7 +238,9 @@ class CozmoRos(object):
         Publish detected object as transforms between odom_frame and object_frame.
 
         """
+        self.cubes_visible = 0
         for obj in self._cozmo.world.visible_objects:
+            self.cubes_visible += 1
             now = rospy.Time.now()
             x = obj.pose.position.x * 0.001
             y = obj.pose.position.y * 0.001
@@ -249,16 +252,14 @@ class CozmoRos(object):
             # )
             self._last_seen_cube = [(x,y,z),q,now]
 
-        if len(self._last_seen_cube) != 0:
+        # if len(self._last_seen_cube) != 0:
             # print(self._last_seen_cube)
-            now = rospy.Time.now()
-            self._tfb.send_transform(
-                # (x, y, z), q, now, 'cube_' + str(obj.object_id), self._odom_frame
-                self._last_seen_cube[0], self._last_seen_cube[1], now, self._odom_frame, 'world'
+            # now = rospy.Time.now()
+            # self._tfb.send_transform(
+            #     # (x, y, z), q, now, 'cube_' + str(obj.object_id), self._odom_frame
+            #     self._last_seen_cube[0], self._last_seen_cube[1], now, self._odom_frame, 'world'
                     
-            )      
-
-
+            # )      
 
 
 
@@ -408,6 +409,59 @@ class CozmoRos(object):
         odom.twist.covariance = np.diag([1e-2, 1e3, 1e3, 1e3, 1e3, 1e-2]).ravel()
         self._odom_pub.publish(odom)
 
+    
+    def getWorldtoOdomTransform(self): #takes in robotToWorld and OdomToRobot and returns WorldToOdom
+
+        x_odomToRobot = self._cozmo.pose.position.x * 0.001
+        y_odomToRobot = self._cozmo.pose.position.y * 0.001
+        z_odomToRobot = self._cozmo.pose.position.z * 0.001
+        q_odomToRobot = quaternion_from_euler(.0, .0, self._cozmo.pose_angle.radians)
+
+        x_robotToWorld = self._last_seen_cube[0][0]
+        y_robotToWorld = self._last_seen_cube[0][1]
+        z_robotToWorld = self._last_seen_cube[0][2]
+        q_robotToWorld = self._last_seen_cube[1]
+
+        R_odomToRobot = quaternion_matrix(q_odomToRobot)
+        R_robotToWorld = quaternion_matrix(q_robotToWorld)
+
+        # bottomRow = np.array([0, 0, 0, 1])
+        
+        # print(R_odomToRobot)
+        # print(np.array([x_odomToRobot, y_odomToRobot, z_odomToRobot]).T)
+        T_odomToRobot = np.zeros((4,4))
+        T_odomToRobot[0] = np.array([R_odomToRobot[0][0], R_odomToRobot[0][1], R_odomToRobot[0][2], x_odomToRobot])
+        T_odomToRobot[1] = np.array([R_odomToRobot[1][0], R_odomToRobot[1][1], R_odomToRobot[1][2], y_odomToRobot])
+        T_odomToRobot[2] = np.array([R_odomToRobot[2][0], R_odomToRobot[2][1], R_odomToRobot[2][2], z_odomToRobot])
+        T_odomToRobot[3][3] = 1
+        print("odomToRobot", T_odomToRobot)
+        # T_odomToRobot = np.concatenate((T_odomToRobot, bottomRow), axis = 0)
+        # T_robotToWorld = np.array(R_robotToWorld)
+        # T_robotToWorld[0:3][3] = np.array([x_robotToWorld, y_robotToWorld, z_robotToWorld])
+        # T_robotToWorld = np.concatenate((T_robotToWorld, bottomRow), axis = 0)
+
+        T_robotToWorld = np.zeros((4,4))
+        T_robotToWorld[0] = np.array([R_robotToWorld[0][0], R_robotToWorld[0][1], R_robotToWorld[0][2], x_robotToWorld])
+        T_robotToWorld[1] = np.array([R_robotToWorld[1][0], R_robotToWorld[1][1], R_robotToWorld[1][2], y_robotToWorld])
+        T_robotToWorld[2] = np.array([R_robotToWorld[2][0], R_robotToWorld[2][1], R_robotToWorld[2][2], z_robotToWorld])
+        T_robotToWorld[3][3] = 1
+        print("robotToWorld", T_robotToWorld)
+        # print(T_robotToWorld)
+
+        T_worldToOdom = np.dot(np.linalg.inv(T_odomToRobot), np.linalg.inv(T_robotToWorld))
+        print("worldToOdom", T_worldToOdom)
+        # R_worldToOdom = T_worldToOdom[0:][0:]
+
+        q = quaternion_from_matrix(T_worldToOdom)
+        x = T_worldToOdom[0][3]
+        y = T_worldToOdom[1][3]
+        
+
+        return [x, y, q]
+
+
+
+
     def _publish_tf(self, update_rate):
         """
         Broadcast current transformations and update
@@ -426,6 +480,28 @@ class CozmoRos(object):
         x = self._cozmo.pose.position.x * 0.001
         y = self._cozmo.pose.position.y * 0.001
         z = self._cozmo.pose.position.z * 0.001
+
+        #publish world -> odom frame
+        if len(self._last_seen_cube) != 0:
+            
+            if self.cubes_visible > 0:
+                state = self.getWorldtoOdomTransform() #takes in robotToWorld and OdomToRobot and returns WorldToOdom
+                q = state[2]
+                now = rospy.Time.now()
+                self._tfb.send_transform(
+                    (state[0], state[1], 0.0), q, now, self._odom_frame, 'world')
+
+                self.last_state = state
+            
+            else:
+                state = self.last_state
+                q = state[2]
+                now = rospy.Time.now()
+                self._tfb.send_transform(
+                    (state[0], state[1], 0.0), q, now, self._odom_frame, 'world')                
+
+            # print(state[0], state[1])
+
 
         # compute current linear and angular velocity from pose change
         # Note: Sign for linear velocity is taken from commanded velocities!
@@ -460,6 +536,10 @@ class CozmoRos(object):
         q = self._optical_frame_orientation
         self._tfb.send_transform(
             (0.0, 0.0, 0.0), q, now, self._camera_optical_frame, self._camera_frame)
+
+    
+
+
 
         # store last pose
         self._last_pose = deepcopy(self._cozmo.pose)
