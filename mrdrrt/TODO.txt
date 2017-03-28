@@ -1,0 +1,16 @@
+Question for Oren, if local_connector with ordering is done for each edge, and
+some edges require a certain order of movements to be collision-free, do we save
+the orderings in the edge?
+
+- Replace collision checking in environment with FCL
+- Replace nearest neighbors checks in Graph with FLANN
+
+- Start MRdRRT implementation
+	- implement ImplicitGraph class
+	- implement Tree class
+	- Add some notion of a robot?
+	- Test/visualize for two robots starting for opposite sides of cube
+
+
+Notes
+- We are assuming known map right now, constructed in SimpleEnvironment.InitMap
