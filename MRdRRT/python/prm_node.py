@@ -78,6 +78,7 @@ class PRMPlannerNode(object):
             plan_msg.header = h
 
             pub_path = []
+            print("Path: ")
             for config in prm_path:
                 pose = PoseStamped()
                 pose.pose.position.x = config[0]
@@ -91,7 +92,7 @@ class PRMPlannerNode(object):
                 pose.pose.orientation.z = quat[2]
                 pose.pose.orientation.w = quat[3]
                 pub_path.append(pose)
-                print "Path: ", config
+                print(config)
 
             plan_msg.poses = pub_path
             self.plan_pub.publish(plan_msg)
