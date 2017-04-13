@@ -54,11 +54,14 @@ class PRMPlannerNode(object):
 
         try:
             (trans,rot) = self.tf_listener.lookupTransform(self.map_frame, self.robot_frame, rospy.Time(0))
+            eul = tf.transformations.euler_from_quaternion(rot)
+            yaw = eul[2]
             # trans = [-30, -30]
-            yaw = 0.1
+            # yaw = 0.1
         except:
             print("Couldn't get transform between " + self.map_frame + " and " + self.robot_frame)
             return False
+
 
         start_config = np.array([trans[0], trans[1], yaw])
 
