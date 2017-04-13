@@ -35,9 +35,6 @@
   </node> -->
 
   <!-- Teleoperation -->
-  <!-- <group if="$(arg use_joy)"
-         ns="joy_teleop"> -->
-
   <group if="$(arg use_joy)">
     <rosparam command="load" file="$(find cozmo_driver)/config/teleop.yaml" />
 
