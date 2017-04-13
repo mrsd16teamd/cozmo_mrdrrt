@@ -11,14 +11,19 @@ class PRMPlanner(object):
     Can either generate a new roadmap or load a saved one.
     """
 
-    def __init__(self, N=300, load=True, visualize=False, filepath='t_map_prm.p'):
-        self.env = SimpleEnvironment(visualize)
+    def __init__(self, n_nodes=300, map_id=1, load=True, visualize=False, filepath=None):
+        self.env = SimpleEnvironment(map_id, visualize)
         self.graph = Graph(self.env)
-        self.N = N
+        self.n_nodes = n_nodes
+
         self.visualize = visualize
         if self.visualize:
             self.env.InitializePlot()
         if load:
+            if map_id == 1 and filepath is None:
+                filepath = '../roadmaps/cube_center.p'
+            if map_id == 2 and filepath is None:
+                filepath = '../roadmaps/t_map_prm.p'
             self.LoadRoadmap(filepath)
         else:
             raw_input("Hit enter to generate and save new roadmap.")
@@ -28,7 +33,7 @@ class PRMPlanner(object):
     def GenerateRoadmap(self):
         """Standard PRM algorithm."""
         print("Generating roadmap...")
-        while (len(self.graph.vertices) < self.N):
+        while (len(self.graph.vertices) < self.n_nodes):
             # Generate random sample, check that's in Cfree
             qnew = self.env.SampleConfig()
             new_id = self.graph.AddVertex(qnew)
@@ -47,7 +52,7 @@ class PRMPlanner(object):
         prm_graph = dict()
         prm_graph['vertices'] = self.graph.vertices
         prm_graph['edges'] = self.graph.edges
-        with open("t_map_prm.p", "wb") as f:
+        with open("cube_center.p", "wb") as f:
             pickle.dump(prm_graph, f)
             print("Saved roadmap.")
 
@@ -60,6 +65,7 @@ class PRMPlanner(object):
             self.graph.edges = prm_graph['edges']
             if self.visualize:
                 self.PlotRoadmap()
+                raw_input("Wait for plot and check roadmap.")
 
     def PlotRoadmap(self):
         """Plots roadmap's nodes and edges.

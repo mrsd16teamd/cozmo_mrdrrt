@@ -12,6 +12,10 @@ from mrdrrt.srv import PrmSrv
 import numpy as np
 from prm_planner import PRMPlanner
 
+import rospkg
+
+map_id = 1
+
 
 class PRMPlannerNode(object):
     """PRM node for single Cozmo robot.
@@ -21,16 +25,25 @@ class PRMPlannerNode(object):
 
     def __init__(self):
         """ Initializes its own PRM roadmap. Assume map matches real life"""
-        self.prm = PRMPlanner(N=1000, load=True, visualize=False, filepath='/home/kazu/cozmo_ws/src/MRdRRT/python/prm_save.p')
+
+        rospack = rospkg.RosPack()
+        path = rospack.get_path('mrdrrt')
+        if map_id == 1:
+            filename = 'cube_center.p'
+        elif map_id == 2:
+            filename = 't_map_prm.p'
+        map_path = path + '/roadmaps/' + filename
+
+        self.prm = PRMPlanner(n_nodes=1000, map_id=map_id, load=True, visualize=False, filepath = map_path)
         self.tf_listener = tf.TransformListener()
 
         self.plan_pub = rospy.Publisher('prm_path', Path, queue_size=1)
         self.plan_serv = rospy.Service('prm_plan', PrmSrv, self.PlanPath)
 
-        self.map_frame = '/world'
-        self.robot_frame = '/base_link'
+        self.map_frame = 'world'
+        self.robot_frame = 'base_link'
 
-        print("Ready to serve!")
+        print("Ready to serve! Call prm_plan service with goal pose.")
 
     def PlanPath(self, request):
         """Processes service request (query for path to goal point).
@@ -40,8 +53,8 @@ class PRMPlannerNode(object):
         goal_config = np.array([request.goal_pose.x, request.goal_pose.y, request.goal_pose.theta])
 
         try:
-            # (trans,rot) = self.tf_listener.lookupTransform(self.map_frame, self.robot_frame, rospy.Time(0))
-            trans = [-30, -30]
+            (trans,rot) = self.tf_listener.lookupTransform(self.map_frame, self.robot_frame, rospy.Time(0))
+            # trans = [-30, -30]
             yaw = 0.1
         except:
             print("Couldn't get transform between " + self.map_frame + " and " + self.robot_frame)
@@ -67,6 +80,7 @@ class PRMPlannerNode(object):
                 pose.pose.position.x = config[0]
                 pose.pose.position.y = config[1]
 
+                # TODO test this
                 yaw = config[2]
                 quat = tf.transformations.quaternion_from_euler(0, 0, yaw)
                 pose.pose.orientation.x = quat[0]
@@ -74,7 +88,7 @@ class PRMPlannerNode(object):
                 pose.pose.orientation.z = quat[2]
                 pose.pose.orientation.w = quat[3]
                 pub_path.append(pose)
-                print config
+                print "Path: ", config
 
             plan_msg.poses = pub_path
             self.plan_pub.publish(plan_msg)

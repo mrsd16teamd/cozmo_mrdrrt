@@ -1,8 +1,8 @@
 import numpy as np
 import pylab as pl
-from sys import platform
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
+from sys import platform as _platform
 
 
 class SimpleEnvironment(object):
@@ -11,15 +11,17 @@ class SimpleEnvironment(object):
     rectangles, inflated by robot radius.
     """
 
-    def __init__(self, visualize):
+    def __init__(self, map_id=1, visualize=False):
         self.lower_limits = np.array([-50., -50.])    # [cm]
         self.upper_limits = np.array([50., 50.])
         self.visualize = visualize
 
         # TODO add robots
         self.robots = []
-        self.robot_radius = 5  # [cm]
+        self.robot_radius = 5.25  # [cm]
+        self.cube_width = 4.5
 
+        self.map_id = map_id
         self.InitMap()
 
     def ComputeDistance(self, config1, config2):
@@ -83,47 +85,71 @@ class SimpleEnvironment(object):
         return False
 
     ############## Plotting stuff #################
+    def ExpandObstacle(self, obs):
+        """Expand obstacle boundary by robot radius.
+        Assumes format of: [bottom left, bottom right, top right, top left]
+        """
+        r = self.robot_radius
+        obs[0][0] -= r
+        obs[0][1] -= r
+        obs[1][0] += r
+        obs[1][1] -= r
+        obs[2][0] += r
+        obs[2][1] += r
+        obs[3][0] -= r
+        obs[3][1] += r
+        return obs
+
     def InitMap(self):
         """Add all obstacles in env.
         Obstacles are currently defined here as polygons.
+        [bottom left, bottom right, top right, top left]
         """
         self.obstacles = []
-        cube_width = 5  # [cm]
-        w = cube_width + self.robot_radius
 
-        # EMPTY MAP
-        # define vertices - make sure they're in order
-        # cube1 = np.array([[0,0],[w, 0],[w, w], [0, w]])
-        # self.obstacles.append(cube1)
+        if self.map_id == 1:
+            # CUBE MAP
+            w = self.cube_width  # [cm]
+            cube1 = np.array([[0, 0], [w, 0], [w, w], [0, w]])
+            self.obs_unexpanded = [cube1]
 
-        # T MAP. Assume these are already expanded
-        box1 = np.array([[-50, -50], [-50, -40], [50, -40], [50, -50]])
-        box2 = np.array([[-50, -25], [-50, 50], [-10, 50], [-10, -25]])
-        box3 = np.array([[20, -25], [20, 50], [50, 50], [50, -25]])
-        self.obstacles.append(box1)
-        self.obstacles.append(box2)
-        self.obstacles.append(box3)
+            self.obstacles.append(self.ExpandObstacle(cube1))
 
-    def PlotPolygons(self, polygons):
+        if self.map_id == 2:
+            # T MAP
+            box1 = np.array([[-45, -45], [45, -45], [45, -45], [-45, -45]])
+            box2 = np.array([[-45, -20], [-15, -20], [-15, 45], [-45, 45]])
+            box3 = np.array([[25, -20], [45, -20], [45, 45], [25, 45]])
+            self.obs_unexpanded = [box1, box2, box3]
+
+            self.obstacles.append(self.ExpandObstacle(box1))
+            self.obstacles.append(self.ExpandObstacle(box2))
+            self.obstacles.append(self.ExpandObstacle(box3))
+
+    def PlotPolygons(self, polygons, color='b'):
         """Plots polygons on map.
         Assume each polygon is numpy array of vertices.
         """
         patches = []
         for i in range(len(polygons)):
-            polygon = Polygon(polygons[i], True)
+            polygon = Polygon(polygons[i], True, facecolor=color)
             patches.append(polygon)
-        p = PatchCollection(patches, alpha=0.4)
+        p = PatchCollection(patches, alpha=0.4, match_original=True)
         self.ax.add_collection(p)
 
     def InitializePlot(self):
         """Initialize pyplot figure, and plot polygons/obstacles on map"""
         self.fig, self.ax = pl.subplots()
+        pl.axis('equal')
         pl.xlim([self.lower_limits[0], self.upper_limits[0]])
         pl.ylim([self.lower_limits[1], self.upper_limits[1]])
 
-        self.PlotPolygons(self.obstacles)
-        pl.ion()
-        pl.show()
+        # self.PlotPolygons(self.obs_unexpanded, color='y')
+        self.PlotPolygons(self.obstacles, color='b')
+        if _platform == 'darwin':
+            pl.ion()
+            pl.show()
+
 
     def PlotEdge(self, sconfig, econfig, color='k--', lwidth=0.2):
         """Plot edge between two points on map."""
