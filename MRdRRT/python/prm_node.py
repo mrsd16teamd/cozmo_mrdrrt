@@ -37,7 +37,7 @@ class PRMPlannerNode(object):
         self.prm = PRMPlanner(n_nodes=1000, map_id=map_id, load=True, visualize=False, filepath = map_path)
         self.tf_listener = tf.TransformListener()
 
-        self.plan_pub = rospy.Publisher('prm_path', Path, queue_size=1)
+        self.plan_pub = rospy.Publisher('cozmo/path', Path, queue_size=1)
         self.plan_serv = rospy.Service('prm_plan', PrmSrv, self.PlanPath)
 
         self.map_frame = 'world'
