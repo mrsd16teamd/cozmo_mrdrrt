@@ -29,6 +29,7 @@ limitations under the License.
 import sys
 import numpy as np
 from copy import deepcopy
+import math
 
 # cozmo SDK
 import cozmo
@@ -36,7 +37,7 @@ from cozmo.util import radians
 
 # ROS
 import rospy
-from transformations import quaternion_from_euler, quaternion_matrix, quaternion_from_matrix
+from transformations import quaternion_from_euler, quaternion_matrix, quaternion_from_matrix, euler_from_quaternion
 from camera_info_manager import CameraInfoManager
 
 # ROS msgs
@@ -58,51 +59,7 @@ from sensor_msgs.msg import (
     Imu,
     JointState,
 )
-
-
-# reused as original is not Python3 compatible
-class TransformBroadcaster(object):
-    """
-    :class:`TransformBroadcaster` is a convenient way to send transformation updates on the ``"/tf"`` message topic.
-    """
-
-    def __init__(self, queue_size=100):
-        self.pub_tf = rospy.Publisher("/tf", TFMessage, queue_size=queue_size)
-
-    def send_transform(self, translation, rotation, time, child, parent):
-        """
-        :param translation: the translation of the transformation as a tuple (x, y, z)
-        :param rotation: the rotation of the transformation as a tuple (x, y, z, w)
-        :param time: the time of the transformation, as a rospy.Time()
-        :param child: child frame in tf, string
-        :param parent: parent frame in tf, string
-
-        Broadcast the transformation from tf frame child to parent on ROS topic ``"/tf"``.
-        """
-
-        t = TransformStamped()
-        t.header.frame_id = parent
-        t.header.stamp = time
-        t.child_frame_id = child
-        t.transform.translation.x = translation[0]
-        t.transform.translation.y = translation[1]
-        t.transform.translation.z = translation[2]
-
-        t.transform.rotation.x = rotation[0]
-        t.transform.rotation.y = rotation[1]
-        t.transform.rotation.z = rotation[2]
-        t.transform.rotation.w = rotation[3]
-
-        self.send_transform_message(t)
-
-    def send_transform_message(self, transform):
-        """
-        :param transform: geometry_msgs.msg.TransformStamped
-        Broadcast the transformation from tf frame child to parent on ROS topic ``"/tf"``.
-        """
-        tfm = TFMessage([transform])
-        self.pub_tf.publish(tfm)
-
+from nav_msgs.msg import Path
 
 class CozmoRos(object):
     """
@@ -130,6 +87,8 @@ class CozmoRos(object):
         self._camera_info_manager = CameraInfoManager('cozmo_camera', namespace='/cozmo_camera')
         self._last_seen_cube = []
         self.cubes_visible = 0
+        self.waypoints = []
+        self.path_received = 0
 
         # tf
         self._tfb = TransformBroadcaster()
@@ -160,9 +119,27 @@ class CozmoRos(object):
         self._head_sub = rospy.Subscriber('head_angle', Float64, self._move_head, queue_size=1)
         self._lift_sub = rospy.Subscriber('lift_height', Float64, self._move_lift, queue_size=1)
 
+        self._path_sub = rospy.Subscriber('path', Path, self.path_callback, queue_size=1)
+
         # camera info manager
         self._camera_info_manager.setURL(camera_info_url)
         self._camera_info_manager.loadCameraInfo()
+
+    def turnInPlace(self, angle):
+        angle = cozmo.util.radians(angle)
+        action = self._cozmo.turn_in_place(angle)
+        print("turning in place by {}".format(angle))
+        action.wait_for_completed()
+
+    def driveStraight(self, dist, speed):
+        dist = dist*1000 #convert to mm
+        speed = speed*1000
+        dist = cozmo.util.distance_mm(dist)
+        speed = cozmo.util.Speed(speed)
+        print("driving straight for {} at {}".format(dist, speed))
+        action = self._cozmo.drive_straight(dist, speed,  should_play_anim=False)
+        action.wait_for_completed()
+
 
     def _move_head(self, cmd):
         """
@@ -203,6 +180,12 @@ class CozmoRos(object):
         light = cozmo.lights.Light(cozmo.lights.Color(rgba=color), on_period_ms=1000)
         # set lights
         self._cozmo.set_all_backpack_lights(light)
+
+    def path_callback(self, path):
+        self.waypoints = path.poses
+        if len(self.waypoints) > 0:
+            self.path_received = 1
+
 
     def _twist_callback(self, cmd):
         """
@@ -251,41 +234,6 @@ class CozmoRos(object):
                 # (x, y, z), q, now, 'world', self._odom_frame
             # )
             self._last_seen_cube = [(x,y,z),q,now]
-
-        # if len(self._last_seen_cube) != 0:
-            # print(self._last_seen_cube)
-            # now = rospy.Time.now()
-            # self._tfb.send_transform(
-            #     # (x, y, z), q, now, 'cube_' + str(obj.object_id), self._odom_frame
-            #     self._last_seen_cube[0], self._last_seen_cube[1], now, self._odom_frame, 'world'
-                    
-            # )      
-
-
-
-        # if len(self._last_seen_cube) == 0:
-        #     now = rospy.Time.now()
-        #     self._tfb.send_transform(
-        #             # (x, y, z), q, now, 'cube_' + str(obj.object_id), self._odom_frame
-
-        #             (self.last_cube_x, self.last_cube_y, self.last_cube_z), self.last_cube_q, now, self._odom_frame, 'world'
-        #         )
-        # else:
-        #     for obj in self._cozmo.world.visible_objects:
-        #         now = rospy.Time.now()
-        #         x = obj.pose.position.x * 0.001
-        #         y = obj.pose.position.y * 0.001
-        #         z = obj.pose.position.z * 0.001
-        #         q = (obj.pose.rotation.q1, obj.pose.rotation.q2, obj.pose.rotation.q3, obj.pose.rotation.q0)
-        #         self._tfb.send_transform(
-        #             (x, y, z), q, now, 'cube_' + str(obj.object_id), self._odom_frame
-        #             # (x, y, z), q, now, 'world', self._odom_frame
-        #         )
-
-        #         self.last_cube_x = x
-        #         self.last_cube_y = y
-        #         self.last_cube_z = z
-        #         self.last_cube_q = q
 
 
 
@@ -434,7 +382,7 @@ class CozmoRos(object):
         T_odomToRobot[1] = np.array([R_odomToRobot[1][0], R_odomToRobot[1][1], R_odomToRobot[1][2], y_odomToRobot])
         T_odomToRobot[2] = np.array([R_odomToRobot[2][0], R_odomToRobot[2][1], R_odomToRobot[2][2], z_odomToRobot])
         T_odomToRobot[3][3] = 1
-        print("odomToRobot", T_odomToRobot)
+        # print("odomToRobot", T_odomToRobot)
         # T_odomToRobot = np.concatenate((T_odomToRobot, bottomRow), axis = 0)
         # T_robotToWorld = np.array(R_robotToWorld)
         # T_robotToWorld[0:3][3] = np.array([x_robotToWorld, y_robotToWorld, z_robotToWorld])
@@ -445,11 +393,11 @@ class CozmoRos(object):
         T_robotToWorld[1] = np.array([R_robotToWorld[1][0], R_robotToWorld[1][1], R_robotToWorld[1][2], y_robotToWorld])
         T_robotToWorld[2] = np.array([R_robotToWorld[2][0], R_robotToWorld[2][1], R_robotToWorld[2][2], z_robotToWorld])
         T_robotToWorld[3][3] = 1
-        print("robotToWorld", T_robotToWorld)
+        # print("robotToWorld", T_robotToWorld)
         # print(T_robotToWorld)
 
         T_worldToOdom = np.dot(np.linalg.inv(T_odomToRobot), np.linalg.inv(T_robotToWorld))
-        print("worldToOdom", T_worldToOdom)
+        # print("worldToOdom", T_worldToOdom)
         # R_worldToOdom = T_worldToOdom[0:][0:]
 
         q = quaternion_from_matrix(T_worldToOdom)
@@ -544,6 +492,52 @@ class CozmoRos(object):
         # store last pose
         self._last_pose = deepcopy(self._cozmo.pose)
 
+    
+
+    def goToWaypoint(self, waypoint):
+        
+        ## this is currently in robot odom frame
+        x = self._cozmo.pose.position.x * 0.001
+        y = self._cozmo.pose.position.y * 0.001
+        th = self._cozmo.pose_angle.radians
+        ## this is in global frame
+        goal_x = waypoint.pose.position.x
+        goal_y = waypoint.pose.position.y
+
+        q = waypoint.pose.orientation
+
+        goal_th = euler_from_quaternion(np.array([q.x,q.y,q.z,q.w]))[2]
+
+        dx = goal_x -x
+        dy = goal_y -y
+        dth = goal_th - th
+        dist2goal = np.linalg.norm(np.array([dx, dy, dth]))
+        print("Distance to next waypoint: x={}, y={}, th={}, norm={}".format(dx,dy,dth,dist2goal))
+        if dist2goal < 0.1:
+
+            return True
+
+
+        d_theta = th - math.atan2((goal_y-y),(goal_x-x))
+        self.turnInPlace(d_theta) #turn towards goal, anglesinrad
+        dist = math.sqrt(math.pow(goal_x-x,2) + math.pow(goal_y-y,2))
+        self.driveStraight(dist, speed=0.05)
+        self.turnInPlace(goal_th - th - d_theta)
+
+
+    def executePath(self, path):
+
+        for waypoint in path:
+            waypointReached = 0
+            while not (waypointReached):
+                waypointReached = self.goToWaypoint(waypoint)
+            print("Waypoint Reached...")
+
+        print ("Goal Reached!")
+        self.path_received = 0
+        self.waypoints = []
+
+
     def run(self, update_rate=60):
         """
         Publish data continuously with given rate.
@@ -564,7 +558,11 @@ class CozmoRos(object):
             # send message repeatedly to avoid idle mode.
             # This might cause low battery soon
             # TODO improve this!
-            self._cozmo.drive_wheels(*self._wheel_vel)
+            if self.path_received:
+                print("Path of length {} received, Executing Path".format(len(self.waypoints)))
+                self.executePath(self.waypoints)    
+            else:
+                self._cozmo.drive_wheels(*self._wheel_vel)
             # sleep
             r.sleep()
         # stop events on cozmo
@@ -586,6 +584,50 @@ def cozmo_app(coz_conn):
     coz.camera.image_stream_enabled = True
     coz_ros = CozmoRos(coz)
     coz_ros.run()
+
+
+# reused as original is not Python3 compatible
+class TransformBroadcaster(object):
+    """
+    :class:`TransformBroadcaster` is a convenient way to send transformation updates on the ``"/tf"`` message topic.
+    """
+
+    def __init__(self, queue_size=100):
+        self.pub_tf = rospy.Publisher("/tf", TFMessage, queue_size=queue_size)
+
+    def send_transform(self, translation, rotation, time, child, parent):
+        """
+        :param translation: the translation of the transformation as a tuple (x, y, z)
+        :param rotation: the rotation of the transformation as a tuple (x, y, z, w)
+        :param time: the time of the transformation, as a rospy.Time()
+        :param child: child frame in tf, string
+        :param parent: parent frame in tf, string
+
+        Broadcast the transformation from tf frame child to parent on ROS topic ``"/tf"``.
+        """
+
+        t = TransformStamped()
+        t.header.frame_id = parent
+        t.header.stamp = time
+        t.child_frame_id = child
+        t.transform.translation.x = translation[0]
+        t.transform.translation.y = translation[1]
+        t.transform.translation.z = translation[2]
+
+        t.transform.rotation.x = rotation[0]
+        t.transform.rotation.y = rotation[1]
+        t.transform.rotation.z = rotation[2]
+        t.transform.rotation.w = rotation[3]
+
+        self.send_transform_message(t)
+
+    def send_transform_message(self, transform):
+        """
+        :param transform: geometry_msgs.msg.TransformStamped
+        Broadcast the transformation from tf frame child to parent on ROS topic ``"/tf"``.
+        """
+        tfm = TFMessage([transform])
+        self.pub_tf.publish(tfm)
 
 
 if __name__ == '__main__':
