@@ -37,7 +37,7 @@ from cozmo.util import radians
 
 # ROS
 import rospy
-from transformations import quaternion_from_euler, quaternion_matrix, quaternion_from_matrix, euler_from_quaternion
+from transformations import quaternion_from_euler, quaternion_matrix, quaternion_from_matrix, euler_from_quaternion, euler_from_matrix
 from camera_info_manager import CameraInfoManager
 
 # ROS msgs
@@ -45,7 +45,8 @@ from tf2_msgs.msg import TFMessage
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import (
     Twist,
-    TransformStamped
+    TransformStamped,
+    PoseStamped
 )
 from std_msgs.msg import (
     String,
@@ -88,12 +89,15 @@ class CozmoRos(object):
         self._last_seen_cube = []
         self.cubes_visible = 0
         self.waypoints = []
+        self.goal = []
         self.path_received = 0
-
+        self.goal_received = 0
+        self.odom = Odometry()
         # tf
         self._tfb = TransformBroadcaster()
 
         # params
+        self._world_frame = rospy.get_param('~world_frame', 'map')
         self._odom_frame = rospy.get_param('~odom_frame', 'odom')
         self._footprint_frame = rospy.get_param('~footprint_frame', 'base_footprint')
         self._base_frame = rospy.get_param('~base_frame', 'base_link')
@@ -120,6 +124,7 @@ class CozmoRos(object):
         self._lift_sub = rospy.Subscriber('lift_height', Float64, self._move_lift, queue_size=1)
 
         self._path_sub = rospy.Subscriber('path', Path, self.path_callback, queue_size=1)
+        self._goal_sub = rospy.Subscriber('goal', PoseStamped, self.goal_callback, queue_size=1)
 
         # camera info manager
         self._camera_info_manager.setURL(camera_info_url)
@@ -180,6 +185,10 @@ class CozmoRos(object):
         light = cozmo.lights.Light(cozmo.lights.Color(rgba=color), on_period_ms=1000)
         # set lights
         self._cozmo.set_all_backpack_lights(light)
+
+    def goal_callback(self, goal):
+        self.goal = goal
+        self.goal_received = 1
 
     def path_callback(self, path):
         self.waypoints = path.poses
@@ -335,75 +344,49 @@ class CozmoRos(object):
 
         """
         # only publish if we have a subscriber
-        if self._odom_pub.get_num_connections() == 0:
-            return
+        # if self._odom_pub.get_num_connections() == 0:
+            # return
 
         now = rospy.Time.now()
-        odom = Odometry()
-        odom.header.frame_id = self._odom_frame
-        odom.header.stamp = now
-        odom.child_frame_id = self._footprint_frame
-        odom.pose.pose.position.x = self._cozmo.pose.position.x * 0.001
-        odom.pose.pose.position.y = self._cozmo.pose.position.y * 0.001
-        odom.pose.pose.position.z = self._cozmo.pose.position.z * 0.001
+        self.odom = Odometry()
+        self.odom.header.frame_id = self._odom_frame
+        self.odom.header.stamp = now
+        self.odom.child_frame_id = self._footprint_frame
+        self.odom.pose.pose.position.x = self._cozmo.pose.position.x * 0.001
+        self.odom.pose.pose.position.y = self._cozmo.pose.position.y * 0.001
+        self.odom.pose.pose.position.z = self._cozmo.pose.position.z * 0.001
         q = quaternion_from_euler(.0, .0, self._cozmo.pose_angle.radians)
-        odom.pose.pose.orientation.x = q[0]
-        odom.pose.pose.orientation.y = q[1]
-        odom.pose.pose.orientation.z = q[2]
-        odom.pose.pose.orientation.w = q[3]
-        odom.pose.covariance = np.diag([1e-2, 1e-2, 1e-2, 1e3, 1e3, 1e-1]).ravel()
-        odom.twist.twist.linear.x = self._lin_vel
-        odom.twist.twist.angular.z = self._ang_vel
-        odom.twist.covariance = np.diag([1e-2, 1e3, 1e3, 1e3, 1e3, 1e-2]).ravel()
-        self._odom_pub.publish(odom)
+        self.odom.pose.pose.orientation.x = q[0]
+        self.odom.pose.pose.orientation.y = q[1]
+        self.odom.pose.pose.orientation.z = q[2]
+        self.odom.pose.pose.orientation.w = q[3]
+        self.odom.pose.covariance = np.diag([1e-2, 1e-2, 1e-2, 1e3, 1e3, 1e-1]).ravel()
+        self.odom.twist.twist.linear.x = self._lin_vel
+        self.odom.twist.twist.angular.z = self._ang_vel
+        self.odom.twist.covariance = np.diag([1e-2, 1e3, 1e3, 1e3, 1e3, 1e-2]).ravel()
+        self._odom_pub.publish(self.odom)
 
     
     def getWorldtoOdomTransform(self): #takes in robotToWorld and OdomToRobot and returns WorldToOdom
 
-        x_odomToRobot = self._cozmo.pose.position.x * 0.001
-        y_odomToRobot = self._cozmo.pose.position.y * 0.001
-        z_odomToRobot = self._cozmo.pose.position.z * 0.001
-        q_odomToRobot = quaternion_from_euler(.0, .0, self._cozmo.pose_angle.radians)
+        x_odomToWorld = self._last_seen_cube[0][0]
+        y_odomToWorld = self._last_seen_cube[0][1]
+        z_odomToWorld = self._last_seen_cube[0][2]
+        q_odomToWorld = self._last_seen_cube[1]
 
-        x_robotToWorld = self._last_seen_cube[0][0]
-        y_robotToWorld = self._last_seen_cube[0][1]
-        z_robotToWorld = self._last_seen_cube[0][2]
-        q_robotToWorld = self._last_seen_cube[1]
+        R_odomToWorld = quaternion_matrix(q_odomToWorld)
 
-        R_odomToRobot = quaternion_matrix(q_odomToRobot)
-        R_robotToWorld = quaternion_matrix(q_robotToWorld)
+        T_odomToWorld = np.zeros((4,4))
+        T_odomToWorld[0] = np.array([R_odomToWorld[0][0], R_odomToWorld[0][1], R_odomToWorld[0][2], x_odomToWorld])
+        T_odomToWorld[1] = np.array([R_odomToWorld[1][0], R_odomToWorld[1][1], R_odomToWorld[1][2], y_odomToWorld])
+        T_odomToWorld[2] = np.array([R_odomToWorld[2][0], R_odomToWorld[2][1], R_odomToWorld[2][2], z_odomToWorld])
+        T_odomToWorld[3][3] = 1
 
-        # bottomRow = np.array([0, 0, 0, 1])
-        
-        # print(R_odomToRobot)
-        # print(np.array([x_odomToRobot, y_odomToRobot, z_odomToRobot]).T)
-        T_odomToRobot = np.zeros((4,4))
-        T_odomToRobot[0] = np.array([R_odomToRobot[0][0], R_odomToRobot[0][1], R_odomToRobot[0][2], x_odomToRobot])
-        T_odomToRobot[1] = np.array([R_odomToRobot[1][0], R_odomToRobot[1][1], R_odomToRobot[1][2], y_odomToRobot])
-        T_odomToRobot[2] = np.array([R_odomToRobot[2][0], R_odomToRobot[2][1], R_odomToRobot[2][2], z_odomToRobot])
-        T_odomToRobot[3][3] = 1
-        # print("odomToRobot", T_odomToRobot)
-        # T_odomToRobot = np.concatenate((T_odomToRobot, bottomRow), axis = 0)
-        # T_robotToWorld = np.array(R_robotToWorld)
-        # T_robotToWorld[0:3][3] = np.array([x_robotToWorld, y_robotToWorld, z_robotToWorld])
-        # T_robotToWorld = np.concatenate((T_robotToWorld, bottomRow), axis = 0)
 
-        T_robotToWorld = np.zeros((4,4))
-        T_robotToWorld[0] = np.array([R_robotToWorld[0][0], R_robotToWorld[0][1], R_robotToWorld[0][2], x_robotToWorld])
-        T_robotToWorld[1] = np.array([R_robotToWorld[1][0], R_robotToWorld[1][1], R_robotToWorld[1][2], y_robotToWorld])
-        T_robotToWorld[2] = np.array([R_robotToWorld[2][0], R_robotToWorld[2][1], R_robotToWorld[2][2], z_robotToWorld])
-        T_robotToWorld[3][3] = 1
-        # print("robotToWorld", T_robotToWorld)
-        # print(T_robotToWorld)
-
-        T_worldToOdom = np.dot(np.linalg.inv(T_odomToRobot), np.linalg.inv(T_robotToWorld))
-        # print("worldToOdom", T_worldToOdom)
-        # R_worldToOdom = T_worldToOdom[0:][0:]
-
+        T_worldToOdom = np.linalg.inv(T_odomToWorld)
         q = quaternion_from_matrix(T_worldToOdom)
         x = T_worldToOdom[0][3]
         y = T_worldToOdom[1][3]
-        
 
         return [x, y, q]
 
@@ -437,7 +420,7 @@ class CozmoRos(object):
                 q = state[2]
                 now = rospy.Time.now()
                 self._tfb.send_transform(
-                    (state[0], state[1], 0.0), q, now, self._odom_frame, 'world')
+                    (state[0], state[1], 0.0), q, now, self._odom_frame, self._world_frame)
 
                 self.last_state = state
             
@@ -446,7 +429,14 @@ class CozmoRos(object):
                 q = state[2]
                 now = rospy.Time.now()
                 self._tfb.send_transform(
-                    (state[0], state[1], 0.0), q, now, self._odom_frame, 'world')                
+                    (state[0], state[1], 0.0), q, now, self._odom_frame, self._world_frame)
+
+        else:
+            
+            q = quaternion_from_euler(.0, .0, .0)
+            now = rospy.Time.now()
+            self._tfb.send_transform(
+            (0.0, 0.0, 0.0), q, now, self._odom_frame, self._world_frame)            
 
             # print(state[0], state[1])
 
@@ -492,14 +482,65 @@ class CozmoRos(object):
         # store last pose
         self._last_pose = deepcopy(self._cozmo.pose)
 
+    def transformPose(self):
+        x_odomToRobot = self._cozmo.pose.position.x * 0.001
+        y_odomToRobot = self._cozmo.pose.position.y * 0.001
+        z_odomToRobot = self._cozmo.pose.position.z * 0.001
+        q_odomToRobot = quaternion_from_euler(.0, .0, self._cozmo.pose_angle.radians)
+
+        R_odomToRobot = quaternion_matrix(q_odomToRobot)
     
+        T_odomToRobot = np.zeros((4,4))
+        T_odomToRobot[0] = np.array([R_odomToRobot[0][0], R_odomToRobot[0][1], R_odomToRobot[0][2], x_odomToRobot])
+        T_odomToRobot[1] = np.array([R_odomToRobot[1][0], R_odomToRobot[1][1], R_odomToRobot[1][2], y_odomToRobot])
+        T_odomToRobot[2] = np.array([R_odomToRobot[2][0], R_odomToRobot[2][1], R_odomToRobot[2][2], z_odomToRobot])
+        T_odomToRobot[3][3] = 1
+
+        x_worldToOdom , y_worldToOdom, q_worldToOdom = self.last_state
+
+        R_worldToOdom = quaternion_matrix(q_worldToOdom)
+        T_worldToOdom = np.zeros((4,4))
+        T_worldToOdom[0] = np.array([R_worldToOdom[0][0], R_worldToOdom[0][1], R_worldToOdom[0][2], x_worldToOdom])
+        T_worldToOdom[1] = np.array([R_worldToOdom[1][0], R_worldToOdom[1][1], R_worldToOdom[1][2], y_worldToOdom])
+        T_worldToOdom[2] = np.array([R_worldToOdom[2][0], R_worldToOdom[2][1], R_worldToOdom[2][2], 0])
+        T_worldToOdom[3][3] = 1
+        
+        T_worldToRobot = np.dot(T_odomToRobot, T_worldToOdom)
+        T_robotToWorld = np.linalg.inv(T_worldToRobot)
+
+        R_worldToRobot = T_worldToRobot[0:3][0:3]
+
+        th = euler_from_matrix(R_worldToRobot)[2]
+
+        p = np.dot(T_robotToWorld, np.array([x_odomToRobot, y_odomToRobot, 0, 1]))
+        x = p[0]
+        y = p[1]
+
+        print(p, x,y,th)
+        return x, y, th
 
     def goToWaypoint(self, waypoint):
         
         ## this is currently in robot odom frame
-        x = self._cozmo.pose.position.x * 0.001
-        y = self._cozmo.pose.position.y * 0.001
-        th = self._cozmo.pose_angle.radians
+        # x = self._cozmo.pose.position.x * 0.001
+        # y = self._cozmo.pose.position.y * 0.001
+        # th = self._cozmo.pose_angle.radians
+        
+        ## make it a posestamped object
+        # curr_pose = PoseStamped()
+        # curr_pose.header = self.odom.header
+        # curr_pose.pose = self.odom.pose.pose
+    
+        ## convert current pose to world frame
+
+        worldPose_x, worldPose_y, worldPose_th = self.transformPose()
+
+
+        x = worldPose_x
+        y = worldPose_y
+        th = worldPose_th
+
+
         ## this is in global frame
         goal_x = waypoint.pose.position.x
         goal_y = waypoint.pose.position.y
@@ -510,11 +551,15 @@ class CozmoRos(object):
 
         dx = goal_x -x
         dy = goal_y -y
-        dth = goal_th - th
-        dist2goal = np.linalg.norm(np.array([dx, dy, dth]))
-        print("Distance to next waypoint: x={}, y={}, th={}, norm={}".format(dx,dy,dth,dist2goal))
-        if dist2goal < 0.1:
+        dth = self.wrapToPi(goal_th - th)
+        dist2goal = np.linalg.norm(np.array([dx, dy]))
 
+        print("Now at: x={}, y={}, th={} ".format(x,y,th))
+        print("Going to: x={}, y={}, th={} ".format(goal_x,goal_y,goal_th))
+        print("Distance : x={}, y={}, th={}, norm={}".format(dx,dy,dth,dist2goal))
+        
+        if dist2goal < 0.1:
+            print("Waypoint Reached")    
             return True
 
 
@@ -531,11 +576,17 @@ class CozmoRos(object):
             waypointReached = 0
             while not (waypointReached):
                 waypointReached = self.goToWaypoint(waypoint)
-            print("Waypoint Reached...")
+            
 
         print ("Goal Reached!")
         self.path_received = 0
         self.waypoints = []
+
+    def wrapToPi(self, theta):
+        if theta > np.pi:
+            theta -= 2.*np.pi
+        if theta < -np.pi:
+            theta += 2.*np.pi
 
 
     def run(self, update_rate=60):
@@ -559,8 +610,14 @@ class CozmoRos(object):
             # This might cause low battery soon
             # TODO improve this!
             if self.path_received:
-                print("Path of length {} received, Executing Path".format(len(self.waypoints)))
-                self.executePath(self.waypoints)    
+                print("Path of length {} received, Executing Path: {}".format(len(self.waypoints)), self.waypoints)
+                self.executePath(self.waypoints)
+            elif self.goal_received:
+                print("Goal received, going to \n{}".format(self.goal.pose))
+                goalReached = 0
+                # while not goalReached:
+                goalReached = self.goToWaypoint(self.goal)
+                self.goal_received = 0   
             else:
                 self._cozmo.drive_wheels(*self._wheel_vel)
             # sleep

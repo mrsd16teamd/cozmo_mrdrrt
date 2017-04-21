@@ -1,7 +1,7 @@
 <launch>
 
   <!-- ARGUMENTS -->
-  <arg name="use_joy" default="true"            />
+  <arg name="use_joy" default="false"            />
   <arg name="joy_dev" default="/dev/input/js0"  />
 
   <!--
@@ -47,9 +47,15 @@
     </node>
   </group>
 
+<!--   <node pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" name="teleop_twist_keyboard">
+      <remap from="cmd_vel"         to="cozmo/cmd_vel"     />
+  </node> -->
+
   <!--
   VISUALIZATION
   -->
+  <node pkg="map_server" type="map_server" name="map_server" args="$(find cozmo_driver)/maps/cozmo.yaml" />
+
   <node pkg="rviz" type="rviz" name="rviz"
         args="-d $(find cozmo_driver)/config/cozmo.rviz"
         output="screen" />
