@@ -133,7 +133,7 @@ class CozmoRos(object):
 
     def turnInPlace(self, angle):
         angle = cozmo.util.radians(angle)
-        action = self._cozmo.turn_in_place(angle)
+        action = self._cozmo.turn_in_place(angle, num_retries=3, in_parallel=False)
         print("turning in place by {}".format(angle))
         action.wait_for_completed()
 
@@ -143,7 +143,7 @@ class CozmoRos(object):
         dist = cozmo.util.distance_mm(dist)
         speed = cozmo.util.Speed(speed)
         print("driving straight for {} at {}".format(dist, speed))
-        action = self._cozmo.drive_straight(dist, speed,  should_play_anim=False)
+        action = self._cozmo.drive_straight(dist, speed,  should_play_anim=False, in_parallel=False)
         action.wait_for_completed()
 
 
@@ -479,44 +479,44 @@ class CozmoRos(object):
         y_odomToRobot = self._cozmo.pose.position.y * 0.001
         z_odomToRobot = self._cozmo.pose.position.z * 0.001
         th_odomToRobot = self._cozmo.pose_angle.radians
+        T_odomToRobot = self.poseToTransformation(x_odomToRobot, y_odomToRobot, th_odomToRobot)
         # q_odomToRobot = quaternion_from_euler(.0, .0, self._cozmo.pose_angle.radians)
-
-        # R_odomToRobot = quaternion_matrix(q_odomToRobot)
-    
-        # T_odomToRobot = np.zeros((4,4))
-        # T_odomToRobot[0] = np.array([R_odomToRobot[0][0], R_odomToRobot[0][1], R_odomToRobot[0][2], x_odomToRobot])
-        # T_odomToRobot[1] = np.array([R_odomToRobot[1][0], R_odomToRobot[1][1], R_odomToRobot[1][2], y_odomToRobot])
-        # T_odomToRobot[2] = np.array([R_odomToRobot[2][0], R_odomToRobot[2][1], R_odomToRobot[2][2], z_odomToRobot])
-        # T_odomToRobot[3][3] = 1
-
+        print("odomToRobot x: {} y: {} th: {}".format(x_odomToRobot, y_odomToRobot, th_odomToRobot))
         x_worldToOdom , y_worldToOdom, q_worldToOdom = self.last_worldToOdom
-
-        # R_worldToOdom = quaternion_matrix(q_worldToOdom)
-        # T_worldToOdom = np.zeros((4,4))
-        # T_worldToOdom[0] = np.array([R_worldToOdom[0][0], R_worldToOdom[0][1], R_worldToOdom[0][2], x_worldToOdom])
-        # T_worldToOdom[1] = np.array([R_worldToOdom[1][0], R_worldToOdom[1][1], R_worldToOdom[1][2], y_worldToOdom])
-        # T_worldToOdom[2] = np.array([R_worldToOdom[2][0], R_worldToOdom[2][1], R_worldToOdom[2][2], 0])
-        # T_worldToOdom[3][3] = 1
-        
-
         T_worldToOdom = self.poseToTransformation(x_worldToOdom, y_worldToOdom, q_worldToOdom)
-
         R_worldToOdom = T_worldToOdom[0:3][0:3]
-
-        th = euler_from_matrix(R_worldToOdom)[2]
-        th = th_odomToRobot + th
+        th_worldToOdom = euler_from_matrix(R_worldToOdom)[2]
+        # th = th_odomToRobot + th
         # p = np.dot(T_robotToWorld, np.array([x_odomToRobot, y_odomToRobot, 0, 1]))
-        p = np.dot(np.linalg.inv(T_worldToOdom), np.array([x_odomToRobot, y_odomToRobot, 0, 1]))
-        x = p[0]
-        y = p[1]
+        # p = np.dot(np.linalg.inv(T_worldToOdom), np.array([x_odomToRobot, y_odomToRobot, 0, 1]))
+        # x = p[0] + x_odomToRobot
+        # y = p[1] + y_odomToRobot
+        print("worldToOdom x: {} y: {} th: {}".format(x_worldToOdom, y_worldToOdom, th_worldToOdom))
 
-        print(p, x,y,th)
-        # return x, y, th
+        # magnitude = np.linalg.norm([x_odomToRobot, y_odomToRobot])
+        # x = x_worldToOdom + math.cos(th)*magnitude
+        # y = y_worldToOdom + math.sin(th)*magnitude
+        # x = x_worldToOdom + math.cos(th)*x_odomToRobot
+        # y = y_worldToOdom + math.sin(th)*y_odomToRobot
+        # th = self.wrapToPi(th + th_odomToRobot )
+
+        T_worldToRobot = np.dot(T_odomToRobot, T_worldToOdom)
+        
+        th = self.wrapToPi(euler_from_matrix(T_worldToRobot[0:3][0:3])[2])
+        x = T_worldToRobot[0][3]
+        y = T_worldToRobot[1][3]
+
+
+
+
+        # print(p, x,y,th)
+        return x, y, th
 
     def poseToTransformation(self, x, y, orientation):
 
+        # print(type(orientation))
         if type(orientation) is float:
-            q = quaternion_from_euler([0.0, 0.0, orientation])
+            q = quaternion_from_euler(0.0, 0.0, orientation)
         else:
             q = orientation
     
@@ -567,18 +567,20 @@ class CozmoRos(object):
         print("Now at: x={}, y={}, th={} ".format(x,y,th))
         print("Going to: x={}, y={}, th={} ".format(goal_x,goal_y,goal_th))
         print("Distance : x={}, y={}, th={}, norm={}".format(dx,dy,dth,dist2goal))
-        
-        if dist2goal < 0.1:
-            print("Waypoint Reached")    
-            return True
 
 
-        d_theta = th - math.atan2((goal_y-y),(goal_x-x))
+        d_theta = self.wrapToPi(math.atan2((goal_y-y),(goal_x-x)) - th)
+
         self.turnInPlace(d_theta) #turn towards goal, anglesinrad
         dist = math.sqrt(math.pow(goal_x-x,2) + math.pow(goal_y-y,2))
         self.driveStraight(dist, speed=0.05)
-        self.turnInPlace(goal_th - th - d_theta)
+        self.turnInPlace(self.wrapToPi(goal_th - (th + d_theta)))
 
+        endPose = self.getWorldPose()
+        return endPose
+        # if dist2goal < 0.05:
+            # print("Waypoint Reached")    
+            # return True
 
     def executePath(self, path):
 
@@ -597,6 +599,7 @@ class CozmoRos(object):
             theta -= 2.*np.pi
         if theta < -np.pi:
             theta += 2.*np.pi
+        return theta
 
 
     def run(self, update_rate=60):
@@ -616,7 +619,7 @@ class CozmoRos(object):
             self._publish_imu()
             self._publish_battery()
             self._publish_odometry()
-            self.getWorldPose()
+            # self.getWorldPose()
             # send message repeatedly to avoid idle mode.
             # This might cause low battery soon
             # TODO improve this!
@@ -624,10 +627,11 @@ class CozmoRos(object):
                 print("Path of length {} received, Executing Path: {}".format(len(self.waypoints)), self.waypoints)
                 self.executePath(self.waypoints)
             elif self.goal_received:
-                print("Goal received, going to \n{}".format(self.goal.pose))
+                print("Goal received")
                 goalReached = 0
                 # while not goalReached:
-                goalReached = self.goToWaypoint(self.goal)
+                endPose = self.goToWaypoint(self.goal)
+                print("Ended up at: {}".format(endPose))
                 self.goal_received = 0   
             else:
                 self._cozmo.drive_wheels(*self._wheel_vel)
