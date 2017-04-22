@@ -479,24 +479,6 @@ class CozmoRos(object):
 
         return x, y, th
 
-    # def makePathFromConfigs(self, configs):
-    #     path_msg = Path()
-    #     h = Header()
-    #     h.stamp = rospy.Time.now()
-    #     path_msg.header = h
-
-    #     path = []
-    #     for config in configs: 
-    #         pose = PoseStamped()
-    #         pose.pose.position.x, pose.pose.position.y = config[0], config[1]
-
-    #         quat = quaternion_from_euler(0, 0, config[2])
-    #         pose.pose.orientation.x, pose.pose.orientation.y, pose.pose.orientation.z, pose.pose.orientation.w = quat[0], quat[1], quat[2], quat[3]
-    #         path.append(pose)
-
-    #     path_msg.poses = path
-    #     return path_msg
-
     def goToWaypoint(self, waypoint):
         # TODO this drifts significantly over long distances - have this incrementally relocalize along path to goal. same for large angles
         
@@ -528,16 +510,6 @@ class CozmoRos(object):
         # print("Going to: x={}, y={}, th={} ".format(goal_x,goal_y,goal_th))
         # print("Distance: x={}, y={}, th={}, norm={}".format(dx,dy,dth, dist2goal))
 
-        # long_dist_thres = 0.5
-        # if dist2goal > long_dist_thres:
-        #     print("goal is far!")
-        #     sleep(2)
-        #     point1 = [(goal_x-x)/3+x, (goal_y-y)/3, th+d_theta]
-        #     point2 = [(goal_x-x)/3*2+x, (goal_y-y)/3*2, th+d_theta]
-        #     path = self.makePathFromConfigs([point1, point2, [goal_x, goal_y, goal_th]])
-        #     self.executePath(path.poses)
-        # else:
-        self.turnInPlace(d_theta) #turn towards goal, anglesinrad
         dist = math.sqrt(math.pow(goal_x-x,2) + math.pow(goal_y-y,2))
         self.driveStraight(dist)
         self.turnInPlace(wrapToPi(goal_th - (th + d_theta)))
