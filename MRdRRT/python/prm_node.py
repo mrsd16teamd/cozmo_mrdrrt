@@ -3,6 +3,7 @@
 
 import rospy
 import tf
+import rospkg
 
 import std_msgs.msg
 import geometry_msgs.msg
@@ -14,10 +15,8 @@ from mrdrrt.srv import PrmSrv
 import numpy as np
 from prm_planner import PRMPlanner
 
-import rospkg
 
 map_id = 1
-
 
 class PRMPlannerNode(object):
     """PRM node for single Cozmo robot.
@@ -44,6 +43,17 @@ class PRMPlannerNode(object):
 
         print("Ready to serve! Call prm_plan service with goal pose.")
 
+    def GetRobotPose(self):
+        try:
+            (trans,rot) = self.tf_listener.lookupTransform(self.map_frame, self.robot_frame, rospy.Time(0))
+            eul = tf.transformations.euler_from_quaternion(rot)
+            yaw = eul[2]
+            config = np.array([trans[0], trans[1], yaw])
+            return config
+        except:
+            print("Couldn't get transform between " + self.map_frame + " and " + self.robot_frame)
+            return False
+
     def PlanPath(self, request):
         """Processes service request (query for path to goal point).
         Path is published in nav_msgs/Path type.
@@ -51,15 +61,7 @@ class PRMPlannerNode(object):
         # print("Starting PlanPath.")
         goal_config = np.array([request.goal_pose.x, request.goal_pose.y, request.goal_pose.theta])
 
-        try:
-            (trans,rot) = self.tf_listener.lookupTransform(self.map_frame, self.robot_frame, rospy.Time(0))
-            eul = tf.transformations.euler_from_quaternion(rot)
-            yaw = eul[2]
-            start_config = np.array([trans[0], trans[1], yaw])
-            print("Start config: [{}, {}, {}]".format(trans[0], trans[1], yaw))
-        except:
-            print("Couldn't get transform between " + self.map_frame + " and " + self.robot_frame)
-            return False
+        start_config = self.GetRobotPose()
 
         prm_path = self.prm.FindPath(start_config, goal_config)
 
