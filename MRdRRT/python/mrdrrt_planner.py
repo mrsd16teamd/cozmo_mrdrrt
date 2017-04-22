@@ -9,6 +9,7 @@ from mrdrrt_tree import Tree
 from implicit_graph import ImplicitGraph
 
 from profile_utils import timefunc
+from collections import defaultdict
 
 
 class MRdRRTPlanner(object):
@@ -139,6 +140,7 @@ class MRdRRTPlanner(object):
         path.append(self.implicitgraph.NodeIdsToConfigs(sids))
         path.append(sconfigs)
         path.reverse()
+
         return path
 
     def VisualizePath(self, path):
@@ -203,10 +205,17 @@ class MRdRRTPlanner(object):
             if(i % 10 == 0):
                 print(str(i) + "th iteration")
             i += 1
-            print('-------')
+            # print('-------')
 
         if (i == self.max_iter):
             print("Failed to find path - hit maximum iterations.")
         else:
             if self.visualize:
                 self.VisualizePath(path)
+
+            # At this point, path is a list of numpy arrays. Want a dictionary of list of numpy arrays
+            path_dict = defaultdict(list)
+            for r in range(self.n_robots):
+                for t in range(1, len(path)):
+                    path_dict[r].append(path[t][r])
+            return path_dict

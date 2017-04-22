@@ -30,14 +30,9 @@ class PRMPlannerNode(object):
 
         rospack = rospkg.RosPack()
         path = rospack.get_path('mrdrrt')
+        map_path = path + '/roadmaps/' + 't_map_prm.p'
 
-        # if map_id == 1:
-        #     filename = 'cube_center.p'
-        # elif map_id == 2:
-        #     filename = 't_map_prm.p'
-        # map_path = path + '/roadmaps/' + filename
-
-        # self.prm = PRMPlanner(n_nodes=1000, map_id=map_id, load=True, visualize=False, filepath = map_path)
+        self.prm = PRMPlanner(n_nodes=300, map_id=map_id, load=True, visualize=False, filepath = map_path)
 
         self.ns = rospy.get_namespace()[:-1]
         self.map_frame = '/map'
@@ -46,7 +41,6 @@ class PRMPlannerNode(object):
         self.tf_listener = tf.TransformListener()
         self.plan_pub = rospy.Publisher(self.ns+'/path', Path, queue_size=1)
         self.plan_serv = rospy.Service('prm_plan', PrmSrv, self.PlanPath)
-
 
         print("Ready to serve! Call prm_plan service with goal pose.")
 
@@ -67,13 +61,15 @@ class PRMPlannerNode(object):
             print("Couldn't get transform between " + self.map_frame + " and " + self.robot_frame)
             return False
 
-        # prm_path = self.prm.FindPath(start_config, goal_config)
+        prm_path = self.prm.FindPath(start_config, goal_config)
 
-        # Make sure start_config is not in path
-        corner1 = np.array([0.2, 0, -np.pi/2])
-        corner2 = np.array([0.2, -0.2, np.pi])
-        corner3 = np.array([0, -0.2, np.pi/2])
-        prm_path = [corner1, corner2, corner3 , goal_config]
+        # Dummy path
+        # corner1 = np.array([0.2, 0, -np.pi/2])
+        # corner2 = np.array([0.2, -0.2, np.pi])
+        # corner3 = np.array([0, -0.2, np.pi/2])
+        # prm_path = [corner1, corner2, corner3 , goal_config]
+
+        # Make sure start_config is not in path!
 
         # Process path and publish as nav_msgs/Path
         # - header
@@ -87,15 +83,14 @@ class PRMPlannerNode(object):
 
             pub_path = []
             print("Path: ")
-            for config in prm_path:
+            for config in prm_path[1:]: #ignore first node in path; it's the start config
                 pose = PoseStamped()
-                pose.pose.position.x = config[0]
-                pose.pose.position.y = config[1]
+                pose.pose.position.x, pose.pose.position.y = config[0], config[1]#prm plans in cm
 
                 quat = tf.transformations.quaternion_from_euler(0, 0, config[2])
                 pose.pose.orientation.x, pose.pose.orientation.y, pose.pose.orientation.z, pose.pose.orientation.w = quat[0], quat[1], quat[2], quat[3]
                 pub_path.append(pose)
-                print(config)
+                print(pose.pose.position.x, pose.pose.position.y, config[2])
 
             plan_msg.poses = pub_path
             self.plan_pub.publish(plan_msg)
