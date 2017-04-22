@@ -127,6 +127,9 @@ class CozmoRos(object):
         cmd.data = 0
         self._move_head(cmd)
 
+        # Define cube positions
+
+
     def turnInPlace(self, angle):
         angle = cozmo.util.radians(angle)
         action = self._cozmo.turn_in_place(angle, num_retries=3, in_parallel=False)
@@ -210,12 +213,13 @@ class CozmoRos(object):
         """
         self._cozmo.say_text(msg.data, in_parallel=True).wait_for_completed()
 
-    def _publish_objects(self):
+    def _log_objects(self):
         """
         Publish detected object as transforms between odom_frame and object_frame.
         """
         self.cubes_visible = 0
         for obj in self._cozmo.world.visible_objects:
+            # print("Object ID: {}".format(obj.object_id))
             self.cubes_visible += 1
             now = rospy.Time.now()
             x = obj.pose.position.x * 0.001
@@ -439,7 +443,10 @@ class CozmoRos(object):
         T[3][3] = 1
         return T
 
-    def getWorldtoOdomTransform(self): #takes in OdomToRobot (cube position) and returns WorldToOdom
+    def getWorldtoOdomTransform(self): 
+        """
+        takes in OdomToRobot (cube position) and returns WorldToOdom
+        """
 
         x_odomToWorld = self._last_seen_cube[0][0]
         y_odomToWorld = self._last_seen_cube[0][1]
@@ -458,20 +465,15 @@ class CozmoRos(object):
     def getWorldPose(self):
         x_odomToRobot = self._cozmo.pose.position.x * 0.001
         y_odomToRobot = self._cozmo.pose.position.y * 0.001
-        z_odomToRobot = self._cozmo.pose.position.z * 0.001
         th_odomToRobot = self._cozmo.pose_angle.radians
         T_odomToRobot = self.poseToTransformation(x_odomToRobot, y_odomToRobot, th_odomToRobot)
-        # q_odomToRobot = quaternion_from_euler(.0, .0, self._cozmo.pose_angle.radians)
+
         print("odomToRobot x: {} y: {} th: {}".format(x_odomToRobot, y_odomToRobot, th_odomToRobot))
         x_worldToOdom , y_worldToOdom, q_worldToOdom = self.last_worldToOdom
         T_worldToOdom = self.poseToTransformation(x_worldToOdom, y_worldToOdom, q_worldToOdom)
         R_worldToOdom = T_worldToOdom[0:3][0:3]
         th_worldToOdom = euler_from_matrix(R_worldToOdom)[2]
-        # th = th_odomToRobot + th
-        # p = np.dot(T_robotToWorld, np.array([x_odomToRobot, y_odomToRobot, 0, 1]))
-        # p = np.dot(np.linalg.inv(T_worldToOdom), np.array([x_odomToRobot, y_odomToRobot, 0, 1]))
-        # x = p[0] + x_odomToRobot
-        # y = p[1] + y_odomToRobot
+
         print("worldToOdom x: {} y: {} th: {}".format(x_worldToOdom, y_worldToOdom, th_worldToOdom))
 
         T_worldToRobot = np.dot(T_worldToOdom, T_odomToRobot)
@@ -502,7 +504,6 @@ class CozmoRos(object):
         y = worldPose_y
         th = worldPose_th
 
-
         ## this is in global frame
         goal_x = waypoint.pose.position.x
         goal_y = waypoint.pose.position.y
@@ -527,9 +528,6 @@ class CozmoRos(object):
 
         endPose = self.getWorldPose()
         return endPose
-        # if dist2goal < 0.05:
-            # print("Waypoint Reached")    
-            # return True
 
     def executePath(self, path):
 
@@ -554,7 +552,7 @@ class CozmoRos(object):
         while not rospy.is_shutdown():
             self._publish_tf(update_rate)
             self._publish_image()
-            self._publish_objects()
+            self._log_objects()
             self._publish_joint_state()
             self._publish_imu()
             self._publish_battery()
