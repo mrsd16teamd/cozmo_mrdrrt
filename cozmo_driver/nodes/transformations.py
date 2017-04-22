@@ -172,16 +172,16 @@ True
 import warnings
 import math
 
-import numpy
+import numpy 
 
 # Documentation in HTML format can be generated with Epydoc
 __docformat__ = "restructuredtext en"
 
-def wrapToPi(self, theta):
-    if theta > np.pi:
-        theta -= 2.*np.pi
-    if theta < -np.pi:
-        theta += 2.*np.pi
+def wrapToPi(theta):
+    if theta > numpy.pi:
+        theta -= 2.*numpy.pi
+    if theta < -numpy.pi:
+        theta += 2.*numpy.pi
     return theta
 
 def identity_matrix():

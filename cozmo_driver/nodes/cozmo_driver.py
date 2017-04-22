@@ -122,7 +122,7 @@ class CozmoRos(object):
         self._camera_info_manager.loadCameraInfo()
 
         # move head to zero angle
-        sleep(3)
+        sleep(2)
         cmd = Float64()
         cmd.data = 0
         self._move_head(cmd)
@@ -504,9 +504,7 @@ class CozmoRos(object):
         # curr_pose.pose = self.odom.pose.pose
     
         ## convert current pose to world frame
-
         worldPose_x, worldPose_y, worldPose_th = self.getWorldPose()
-
 
         x = worldPose_x
         y = worldPose_y
@@ -516,20 +514,17 @@ class CozmoRos(object):
         ## this is in global frame
         goal_x = waypoint.pose.position.x
         goal_y = waypoint.pose.position.y
-
         q = waypoint.pose.orientation
-
         goal_th = euler_from_quaternion(np.array([q.x,q.y,q.z,q.w]))[2]
 
         dx = goal_x -x
         dy = goal_y -y
-        dth = wrapToPi(goal_th - th)
         dist2goal = np.linalg.norm(np.array([dx, dy]))
+        dth = wrapToPi(goal_th - th)
 
         print("Now at: x={}, y={}, th={} ".format(x,y,th))
         print("Going to: x={}, y={}, th={} ".format(goal_x,goal_y,goal_th))
-        print("Distance : x={}, y={}, th={}, norm={}".format(dx,dy,dth,dist2goal))
-
+        print("Distance: x={}, y={}, th={}, norm={}".format(dx,dy,dth,dist2goal))
 
         d_theta = wrapToPi(math.atan2((goal_y-y),(goal_x-x)) - th)
 
