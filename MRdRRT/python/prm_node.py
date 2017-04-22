@@ -1,4 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/python
+# -*- encoding: utf-8 -*-
+
 import rospy
 import tf
 
@@ -28,20 +30,23 @@ class PRMPlannerNode(object):
 
         rospack = rospkg.RosPack()
         path = rospack.get_path('mrdrrt')
-        if map_id == 1:
-            filename = 'cube_center.p'
-        elif map_id == 2:
-            filename = 't_map_prm.p'
-        map_path = path + '/roadmaps/' + filename
 
-        self.prm = PRMPlanner(n_nodes=1000, map_id=map_id, load=True, visualize=False, filepath = map_path)
+        # if map_id == 1:
+        #     filename = 'cube_center.p'
+        # elif map_id == 2:
+        #     filename = 't_map_prm.p'
+        # map_path = path + '/roadmaps/' + filename
+
+        # self.prm = PRMPlanner(n_nodes=1000, map_id=map_id, load=True, visualize=False, filepath = map_path)
+
+        self.ns = rospy.get_namespace()[:-1]
+        self.map_frame = '/map'
+        self.robot_frame = self.ns + '/base_link'
+
         self.tf_listener = tf.TransformListener()
-
-        self.plan_pub = rospy.Publisher('cozmo/path', Path, queue_size=1)
+        self.plan_pub = rospy.Publisher(self.ns+'/path', Path, queue_size=1)
         self.plan_serv = rospy.Service('prm_plan', PrmSrv, self.PlanPath)
 
-        self.map_frame = 'world'
-        self.robot_frame = 'base_link'
 
         print("Ready to serve! Call prm_plan service with goal pose.")
 
@@ -49,23 +54,26 @@ class PRMPlannerNode(object):
         """Processes service request (query for path to goal point).
         Path is published in nav_msgs/Path type.
         """
-        print("Starting PlanPath.")
+        # print("Starting PlanPath.")
         goal_config = np.array([request.goal_pose.x, request.goal_pose.y, request.goal_pose.theta])
 
         try:
             (trans,rot) = self.tf_listener.lookupTransform(self.map_frame, self.robot_frame, rospy.Time(0))
             eul = tf.transformations.euler_from_quaternion(rot)
             yaw = eul[2]
-            # trans = [-30, -30]
-            # yaw = 0.1
+            start_config = np.array([trans[0], trans[1], yaw])
+            print("Start config: [{}, {}, {}]".format(trans[0], trans[1], yaw))
         except:
             print("Couldn't get transform between " + self.map_frame + " and " + self.robot_frame)
             return False
 
+        # prm_path = self.prm.FindPath(start_config, goal_config)
 
-        start_config = np.array([trans[0], trans[1], yaw])
-
-        prm_path = self.prm.FindPath(start_config, goal_config)
+        # Make sure start_config is not in path
+        corner1 = np.array([0.2, 0, -np.pi/2])
+        corner2 = np.array([0.2, -0.2, np.pi])
+        corner3 = np.array([0, -0.2, np.pi/2])
+        prm_path = [corner1, corner2, corner3 , goal_config]
 
         # Process path and publish as nav_msgs/Path
         # - header
