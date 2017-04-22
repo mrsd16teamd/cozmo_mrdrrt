@@ -70,8 +70,8 @@ class CozmoRos(object):
         self._last_pose = self._cozmo.pose
         self._wheel_vel = (0, 0)
         self._optical_frame_orientation = quaternion_from_euler(-np.pi/2., .0, -np.pi/2.)
-        ns = rospy.get_namespace()[-1]
-        self._camera_info_manager = CameraInfoManager('cozmo_camera', namespace=ns)
+        self.ns = rospy.get_namespace()[:-1]
+        self._camera_info_manager = CameraInfoManager('cozmo_camera', namespace=self.ns)
         self._last_seen_cube_pose = []
         self.cubes_visible = 0
         self.waypoints = []
@@ -135,6 +135,15 @@ class CozmoRos(object):
 
         # self.say_something("Let's go!")
 
+        #Set backpack color to uniquely identify cozmo #
+        color_map = {1:[255, 0, 0, 1], 2:[0, 255, 0, 1], 3:[0, 0, 255, 1]} #cozmo1 is red, cozmo2 is green, cozmo3 is blue
+        cozmo_no = int(self.ns[-1])
+        # print(cozmo_no)
+        color = color_map[cozmo_no]
+        light = cozmo.lights.Light(on_color=cozmo.lights.Color(rgb=color), on_period_ms=1000)
+        # set lights
+        self._cozmo.set_all_backpack_lights(light)
+
 
     def turnInPlace(self, angle):
         angle = cozmo.util.radians(angle)
@@ -181,7 +190,7 @@ class CozmoRos(object):
         # setup color as integer values
         color = [int(x * 255) for x in [msg.r, msg.g, msg.b, msg.a]]
         # create lights object with duration
-        light = cozmo.lights.Light(cozmo.lights.Color(rgba=color), on_period_ms=1000)
+        light = cozmo.lights.Light(on_color=cozmo.lights.Color(rgb=color), on_period_ms=1000)
         # set lights
         self._cozmo.set_all_backpack_lights(light)
 
