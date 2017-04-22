@@ -184,6 +184,25 @@ def wrapToPi(theta):
         theta += 2.*numpy.pi
     return theta
 
+def poseToTransformation(x, y, orientation):
+    """
+    Takes x and y coodrdinates, orientation as angle in radians (float) or quaternion (np array)
+    Returns 4x4transformation matrix
+    """
+    if type(orientation) is float or type(orientation) is int:
+        q = quaternion_from_euler(0.0, 0.0, orientation)
+    else:
+        q = orientation
+
+    R = quaternion_matrix(q)
+    T = numpy.zeros((4,4))
+
+    T[0] = numpy.array([R[0][0], R[0][1], R[0][2], x])
+    T[1] = numpy.array([R[1][0], R[1][1], R[1][2], y])
+    T[2] = numpy.array([R[2][0], R[2][1], R[2][2], 0])
+    T[3][3] = 1
+    return T
+
 def identity_matrix():
     """Return 4x4 identity/unit matrix.
 
@@ -1095,7 +1114,6 @@ def euler_from_matrix(matrix, axes='sxyz'):
 
 def euler_from_quaternion(quaternion, axes='sxyz'):
     """Return Euler angles from quaternion for specified axis sequence.
-
     >>> angles = euler_from_quaternion([0.06146124, 0, 0, 0.99810947])
     >>> numpy.allclose(angles, [0.123, 0, 0])
     True

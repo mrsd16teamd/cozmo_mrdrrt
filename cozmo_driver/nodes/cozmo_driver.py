@@ -38,7 +38,7 @@ from cozmo.util import radians
 
 # ROS
 import rospy
-from transformations import quaternion_from_euler, quaternion_matrix, quaternion_from_matrix, euler_from_quaternion, euler_from_matrix, wrapToPi
+from transformations import quaternion_from_euler, quaternion_matrix, quaternion_from_matrix, euler_from_quaternion, euler_from_matrix, wrapToPi, poseToTransformation
 from camera_info_manager import CameraInfoManager
 from transform_broadcaster import TransformBroadcaster
 
@@ -73,9 +73,8 @@ class CozmoRos(object):
         # self._camera_info_manager = CameraInfoManager('cozmo_camera', namespace='/cozmo_camera')
         ns = rospy.get_namespace()
         ns = ns[:-1]
-        print(ns)
         self._camera_info_manager = CameraInfoManager('cozmo_camera', namespace=ns)
-        self._last_seen_cube = []
+        self._last_seen_cube_pose = []
         self.cubes_visible = 0
         self.waypoints = []
         self.goal = []
@@ -122,12 +121,22 @@ class CozmoRos(object):
         self._camera_info_manager.loadCameraInfo()
 
         # move head to zero angle
-        sleep(2)
+        print("Cozmo says - \"Give me a sec to fix my head\"") #Doing this without sleep somehow didn't work as well - Kazu 
+        sleep(1)
         cmd = Float64()
         cmd.data = 0
         self._move_head(cmd)
+        print("\"Alright I'm good, let's gooooo\"")
 
-        # Define cube positions
+        # Define cube positions. Make location empty list if not using 
+        # 1: 'o' with an arm
+        # 2: looks like a 'b'
+        # 3: paperclip
+        # self.cube_locations = {1:[], 2:[0.0, 0.0, 0.0], 3:[]} 
+        self.cube_locations = {1:[-0.275, -0.275, -np.pi/2], 2:[0.275, 0.0, 0.0], 3:[-0.275, 0.275, np.pi/2]} 
+        self.cube_frames = {1:'cube1', 2:'cube2', 3:'cube3'}
+
+        self.last_worldToOdom = [0, 0, np.array([0,0,0,1])]
 
 
     def turnInPlace(self, angle):
@@ -216,22 +225,18 @@ class CozmoRos(object):
     def _log_objects(self):
         """
         Publish detected object as transforms between odom_frame and object_frame.
+        Currently only keeps track of one object in view.
         """
         self.cubes_visible = 0
         for obj in self._cozmo.world.visible_objects:
-            # print("Object ID: {}".format(obj.object_id))
             self.cubes_visible += 1
             now = rospy.Time.now()
             x = obj.pose.position.x * 0.001
             y = obj.pose.position.y * 0.001
             z = obj.pose.position.z * 0.001
             q = (obj.pose.rotation.q1, obj.pose.rotation.q2, obj.pose.rotation.q3, obj.pose.rotation.q0)
-            # self._tfb.send_transform(
-                # (x, y, z), q, now, 'cube_' + str(obj.object_id), self._odom_frame
-                # (x, y, z), q, now, 'world', self._odom_frame
-            # )
-            self._last_seen_cube = [(x,y,z),q,now]
-
+            self._last_seen_cube_pose = [(x,y,z),q,now]
+            self._last_seen_cube_id = obj.object_id
 
     def _publish_image(self):
         """
@@ -365,9 +370,9 @@ class CozmoRos(object):
         z = self._cozmo.pose.position.z * 0.001
 
         #publish world -> odom frame
-        if len(self._last_seen_cube) != 0:
+        if len(self._last_seen_cube_pose) != 0:
             
-            if self.cubes_visible > 0:
+            if self.cubes_visible > 0 and len(self.cube_locations[self._last_seen_cube_id]) is not 0:
                 worldToOdom = self.getWorldtoOdomTransform() #takes in robotToWorld and OdomToRobot and returns WorldToOdom
                 q = worldToOdom[2]
                 now = rospy.Time.now()
@@ -388,6 +393,13 @@ class CozmoRos(object):
             now = rospy.Time.now()
             self._tfb.send_transform(
             (0.0, 0.0, 0.0), q, now, self._odom_frame, self._world_frame)            
+
+
+        for cube_id in self.cube_locations.keys():
+            if len(self.cube_locations[cube_id]) is not 0:
+                q = quaternion_from_euler(0.0, 0.0, self.cube_locations[cube_id][2])
+                now = rospy.Time.now()
+                self._tfb.send_transform((self.cube_locations[cube_id][0], self.cube_locations[cube_id][1], 0.0), q, now, self.cube_frames[cube_id], self._world_frame)   
 
         # compute current linear and angular velocity from pose change
         # Note: Sign for linear velocity is taken from commanded velocities!
@@ -426,39 +438,26 @@ class CozmoRos(object):
         # store last pose
         self._last_pose = deepcopy(self._cozmo.pose)
 
-    def poseToTransformation(self, x, y, orientation):
-
-        # print(type(orientation))
-        if type(orientation) is float:
-            q = quaternion_from_euler(0.0, 0.0, orientation)
-        else:
-            q = orientation
-    
-        R = quaternion_matrix(q)
-        T = np.zeros((4,4))
-
-        T[0] = np.array([R[0][0], R[0][1], R[0][2], x])
-        T[1] = np.array([R[1][0], R[1][1], R[1][2], y])
-        T[2] = np.array([R[2][0], R[2][1], R[2][2], 0])
-        T[3][3] = 1
-        return T
-
     def getWorldtoOdomTransform(self): 
         """
-        takes in OdomToRobot (cube position) and returns WorldToOdom
+        Uses cube positions (known, defined in constructor) as references to find world-odom transform
+        Odom is Cozmo's internal origin
         """
+        x_odomToCube = self._last_seen_cube_pose[0][0]
+        y_odomToCube = self._last_seen_cube_pose[0][1]
+        z_odomToCube = self._last_seen_cube_pose[0][2]
+        q_odomToCube = self._last_seen_cube_pose[1]
+        T_odomToCube = poseToTransformation(x_odomToCube, y_odomToCube, q_odomToCube)
 
-        x_odomToWorld = self._last_seen_cube[0][0]
-        y_odomToWorld = self._last_seen_cube[0][1]
-        z_odomToWorld = self._last_seen_cube[0][2]
-        q_odomToWorld = self._last_seen_cube[1]
+        # TODO put some processing here
+        cube_id = self._last_seen_cube_id
+        T_worldToCube = poseToTransformation(self.cube_locations[cube_id][0], self.cube_locations[cube_id][1], self.cube_locations[cube_id][2])
+        T_cubeToWorld = np.linalg.inv(T_worldToCube)
+        T_worldToOdom = np.linalg.inv(np.dot(T_odomToCube, T_cubeToWorld))
 
-        T_odomToWorld = self.poseToTransformation(x_odomToWorld, y_odomToWorld, q_odomToWorld)
-
-        T_worldToOdom = np.linalg.inv(T_odomToWorld)
-        q = quaternion_from_matrix(T_worldToOdom)
         x = T_worldToOdom[0][3]
         y = T_worldToOdom[1][3]
+        q = quaternion_from_matrix(T_worldToOdom)
 
         return [x, y, q]
 
@@ -466,11 +465,11 @@ class CozmoRos(object):
         x_odomToRobot = self._cozmo.pose.position.x * 0.001
         y_odomToRobot = self._cozmo.pose.position.y * 0.001
         th_odomToRobot = self._cozmo.pose_angle.radians
-        T_odomToRobot = self.poseToTransformation(x_odomToRobot, y_odomToRobot, th_odomToRobot)
+        T_odomToRobot = poseToTransformation(x_odomToRobot, y_odomToRobot, th_odomToRobot)
 
         print("odomToRobot x: {} y: {} th: {}".format(x_odomToRobot, y_odomToRobot, th_odomToRobot))
         x_worldToOdom , y_worldToOdom, q_worldToOdom = self.last_worldToOdom
-        T_worldToOdom = self.poseToTransformation(x_worldToOdom, y_worldToOdom, q_worldToOdom)
+        T_worldToOdom = poseToTransformation(x_worldToOdom, y_worldToOdom, q_worldToOdom)
         R_worldToOdom = T_worldToOdom[0:3][0:3]
         th_worldToOdom = euler_from_matrix(R_worldToOdom)[2]
 
@@ -482,7 +481,6 @@ class CozmoRos(object):
         x = T_worldToRobot[0][3]
         y = T_worldToRobot[1][3]
 
-        # print(p, x,y,th)
         return x, y, th
 
     def goToWaypoint(self, waypoint):
