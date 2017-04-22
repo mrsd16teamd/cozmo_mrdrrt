@@ -30,6 +30,7 @@ import sys
 import numpy as np
 from copy import deepcopy
 import math
+from time import sleep
 
 # cozmo SDK
 import cozmo
@@ -37,43 +38,27 @@ from cozmo.util import radians
 
 # ROS
 import rospy
-from transformations import quaternion_from_euler, quaternion_matrix, quaternion_from_matrix, euler_from_quaternion, euler_from_matrix
+from transformations import quaternion_from_euler, quaternion_matrix, quaternion_from_matrix, euler_from_quaternion, euler_from_matrix, wrapToPi
 from camera_info_manager import CameraInfoManager
+from transform_broadcaster import TransformBroadcaster
 
 # ROS msgs
 from tf2_msgs.msg import TFMessage
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import (
-    Twist,
-    TransformStamped,
-    PoseStamped
-)
-from std_msgs.msg import (
-    String,
-    Float64,
-    ColorRGBA,
-)
-from sensor_msgs.msg import (
-    Image,
-    CameraInfo,
-    BatteryState,
-    Imu,
-    JointState
-)
+from geometry_msgs.msg import (Twist, TransformStamped, PoseStamped)
+from std_msgs.msg import (String, Float64, ColorRGBA)
+from sensor_msgs.msg import (Image, CameraInfo, BatteryState, Imu, JointState)
 from nav_msgs.msg import Path
 
 class CozmoRos(object):
     """
     The Cozmo ROS driver object.
-
     """
     
     def __init__(self, coz):
         """
-
         :type   coz:    cozmo.Robot
         :param  coz:    The cozmo SDK robot handle (object).
-        
         """
 
         # vars
@@ -136,6 +121,12 @@ class CozmoRos(object):
         self._camera_info_manager.setURL(camera_info_url)
         self._camera_info_manager.loadCameraInfo()
 
+        # move head to zero angle
+        sleep(3)
+        cmd = Float64()
+        cmd.data = 0
+        self._move_head(cmd)
+
     def turnInPlace(self, angle):
         angle = cozmo.util.radians(angle)
         action = self._cozmo.turn_in_place(angle, num_retries=3, in_parallel=False)
@@ -151,14 +142,11 @@ class CozmoRos(object):
         action = self._cozmo.drive_straight(dist, speed,  should_play_anim=False, in_parallel=False)
         action.wait_for_completed()
 
-
     def _move_head(self, cmd):
         """
-        Move head to given angle.
-        
+        Move head to given angle.        
         :type   cmd:    Float64
         :param  cmd:    The message containing angle in degrees. [-25 - 44.5]
-        
         """
         action = self._cozmo.set_head_angle(radians(cmd.data * np.pi / 180.), duration=0.0,
                                             in_parallel=True)
@@ -167,11 +155,9 @@ class CozmoRos(object):
     def _move_lift(self, cmd):
         """
         Move lift to given height.
-
         :type   cmd:    Float64
         :param  cmd:    A value between [0 - 1], the SDK auto
                         scales it to the according height.
-
         """
         action = self._cozmo.set_lift_height(height=cmd.data,
                                              duration=0.0, in_parallel=True)
@@ -180,10 +166,8 @@ class CozmoRos(object):
     def _set_backpack_led(self, msg):
         """
         Set the color of the backpack LEDs.
-
         :type   msg:    ColorRGBA
         :param  msg:    The color to be set.
-
         """
         # setup color as integer values
         color = [int(x * 255) for x in [msg.r, msg.g, msg.b, msg.a]]
@@ -201,17 +185,14 @@ class CozmoRos(object):
         if len(self.waypoints) > 0:
             self.path_received = 1
 
-
     def _twist_callback(self, cmd):
         """
         Set commanded velocities from Twist message.
-
         The commands are actually send/set during run loop, so delay
         is in worst case up to 1 / update_rate seconds.
 
         :type   cmd:    Twist
         :param  cmd:    The commanded velocities.
-
         """
         # compute differential wheel speed
         axle_length = 0.07  # 7cm
@@ -224,17 +205,14 @@ class CozmoRos(object):
     def _say_callback(self, msg):
         """
         The callback for incoming text messages to be said.
-
         :type   msg:    String
         :param  msg:    The text message to say.
-
         """
         self._cozmo.say_text(msg.data, in_parallel=True).wait_for_completed()
 
     def _publish_objects(self):
         """
         Publish detected object as transforms between odom_frame and object_frame.
-
         """
         self.cubes_visible = 0
         for obj in self._cozmo.world.visible_objects:
@@ -251,12 +229,9 @@ class CozmoRos(object):
             self._last_seen_cube = [(x,y,z),q,now]
 
 
-
-
     def _publish_image(self):
         """
         Publish latest camera image as Image with CameraInfo.
-
         """
         # only publish if we have a subscriber
         if self._image_pub.get_num_connections() == 0:
@@ -285,7 +260,6 @@ class CozmoRos(object):
     def _publish_joint_state(self):
         """
         Publish joint worldToOdoms as JointworldToOdoms.
-
         """
         # only publish if we have a subscriber
         if self._joint_state_pub.get_num_connections() == 0:
@@ -304,7 +278,6 @@ class CozmoRos(object):
     def _publish_imu(self):
         """
         Publish inertia data as Imu message.
-
         """
         # only publish if we have a subscriber
         if self._imu_pub.get_num_connections() == 0:
@@ -328,7 +301,6 @@ class CozmoRos(object):
     def _publish_battery(self):
         """
         Publish battery as BatteryState message.
-
         """
         # only publish if we have a subscriber
         if self._battery_pub.get_num_connections() == 0:
@@ -347,7 +319,6 @@ class CozmoRos(object):
     def _publish_odometry(self):
         """
         Publish current pose as Odometry message.
-
         """
         # only publish if we have a subscriber
         # if self._odom_pub.get_num_connections() == 0:
@@ -372,45 +343,17 @@ class CozmoRos(object):
         self.odom.twist.covariance = np.diag([1e-2, 1e3, 1e3, 1e3, 1e3, 1e-2]).ravel()
         self._odom_pub.publish(self.odom)
 
-    
-    def getWorldtoOdomTransform(self): #takes in OdomToRobot (cube position) and returns WorldToOdom
-
-        x_odomToWorld = self._last_seen_cube[0][0]
-        y_odomToWorld = self._last_seen_cube[0][1]
-        z_odomToWorld = self._last_seen_cube[0][2]
-        q_odomToWorld = self._last_seen_cube[1]
-
-        # R_odomToWorld = quaternion_matrix(q_odomToWorld)
-
-        # T_odomToWorld = np.zeros((4,4))
-        # T_odomToWorld[0] = np.array([R_odomToWorld[0][0], R_odomToWorld[0][1], R_odomToWorld[0][2], x_odomToWorld])
-        # T_odomToWorld[1] = np.array([R_odomToWorld[1][0], R_odomToWorld[1][1], R_odomToWorld[1][2], y_odomToWorld])
-        # T_odomToWorld[2] = np.array([R_odomToWorld[2][0], R_odomToWorld[2][1], R_odomToWorld[2][2], z_odomToWorld])
-        # T_odomToWorld[3][3] = 1
-
-        T_odomToWorld = self.poseToTransformation(x_odomToWorld, y_odomToWorld, q_odomToWorld)
-
-        T_worldToOdom = np.linalg.inv(T_odomToWorld)
-        q = quaternion_from_matrix(T_worldToOdom)
-        x = T_worldToOdom[0][3]
-        y = T_worldToOdom[1][3]
-
-        return [x, y, q]
-
-
     def _publish_tf(self, update_rate):
         """
         Broadcast current transformations and update
         measured velocities for odometry twist.
 
         Published transforms:
-
         odom_frame -> footprint_frame
         footprint_frame -> base_frame
         base_frame -> head_frame
         head_frame -> camera_frame
         camera_frame -> camera_optical_frame
-
         """
         now = rospy.Time.now()
         x = self._cozmo.pose.position.x * 0.001
@@ -479,6 +422,47 @@ class CozmoRos(object):
         # store last pose
         self._last_pose = deepcopy(self._cozmo.pose)
 
+    def poseToTransformation(self, x, y, orientation):
+
+        # print(type(orientation))
+        if type(orientation) is float:
+            q = quaternion_from_euler(0.0, 0.0, orientation)
+        else:
+            q = orientation
+    
+        R = quaternion_matrix(q)
+        T = np.zeros((4,4))
+
+        T[0] = np.array([R[0][0], R[0][1], R[0][2], x])
+        T[1] = np.array([R[1][0], R[1][1], R[1][2], y])
+        T[2] = np.array([R[2][0], R[2][1], R[2][2], 0])
+        T[3][3] = 1
+        return T
+
+    def getWorldtoOdomTransform(self): #takes in OdomToRobot (cube position) and returns WorldToOdom
+
+        x_odomToWorld = self._last_seen_cube[0][0]
+        y_odomToWorld = self._last_seen_cube[0][1]
+        z_odomToWorld = self._last_seen_cube[0][2]
+        q_odomToWorld = self._last_seen_cube[1]
+
+        # R_odomToWorld = quaternion_matrix(q_odomToWorld)
+
+        # T_odomToWorld = np.zeros((4,4))
+        # T_odomToWorld[0] = np.array([R_odomToWorld[0][0], R_odomToWorld[0][1], R_odomToWorld[0][2], x_odomToWorld])
+        # T_odomToWorld[1] = np.array([R_odomToWorld[1][0], R_odomToWorld[1][1], R_odomToWorld[1][2], y_odomToWorld])
+        # T_odomToWorld[2] = np.array([R_odomToWorld[2][0], R_odomToWorld[2][1], R_odomToWorld[2][2], z_odomToWorld])
+        # T_odomToWorld[3][3] = 1
+
+        T_odomToWorld = self.poseToTransformation(x_odomToWorld, y_odomToWorld, q_odomToWorld)
+
+        T_worldToOdom = np.linalg.inv(T_odomToWorld)
+        q = quaternion_from_matrix(T_worldToOdom)
+        x = T_worldToOdom[0][3]
+        y = T_worldToOdom[1][3]
+
+        return [x, y, q]
+
     def getWorldPose(self):
         x_odomToRobot = self._cozmo.pose.position.x * 0.001
         y_odomToRobot = self._cozmo.pose.position.y * 0.001
@@ -498,41 +482,14 @@ class CozmoRos(object):
         # y = p[1] + y_odomToRobot
         print("worldToOdom x: {} y: {} th: {}".format(x_worldToOdom, y_worldToOdom, th_worldToOdom))
 
-        # magnitude = np.linalg.norm([x_odomToRobot, y_odomToRobot])
-        # x = x_worldToOdom + math.cos(th)*magnitude
-        # y = y_worldToOdom + math.sin(th)*magnitude
-        # x = x_worldToOdom + math.cos(th)*x_odomToRobot
-        # y = y_worldToOdom + math.sin(th)*y_odomToRobot
-        # th = self.wrapToPi(th + th_odomToRobot )
-
         T_worldToRobot = np.dot(T_odomToRobot, T_worldToOdom)
         
-        th = self.wrapToPi(euler_from_matrix(T_worldToRobot[0:3][0:3])[2])
+        th = wrapToPi(euler_from_matrix(T_worldToRobot[0:3][0:3])[2])
         x = T_worldToRobot[0][3]
         y = T_worldToRobot[1][3]
 
-
-
-
         # print(p, x,y,th)
         return x, y, th
-
-    def poseToTransformation(self, x, y, orientation):
-
-        # print(type(orientation))
-        if type(orientation) is float:
-            q = quaternion_from_euler(0.0, 0.0, orientation)
-        else:
-            q = orientation
-    
-        R = quaternion_matrix(q)
-        T = np.zeros((4,4))
-
-        T[0] = np.array([R[0][0], R[0][1], R[0][2], x])
-        T[1] = np.array([R[1][0], R[1][1], R[1][2], y])
-        T[2] = np.array([R[2][0], R[2][1], R[2][2], 0])
-        T[3][3] = 1
-        return T
 
     def goToWaypoint(self, waypoint):
         
@@ -566,7 +523,7 @@ class CozmoRos(object):
 
         dx = goal_x -x
         dy = goal_y -y
-        dth = self.wrapToPi(goal_th - th)
+        dth = wrapToPi(goal_th - th)
         dist2goal = np.linalg.norm(np.array([dx, dy]))
 
         print("Now at: x={}, y={}, th={} ".format(x,y,th))
@@ -574,12 +531,12 @@ class CozmoRos(object):
         print("Distance : x={}, y={}, th={}, norm={}".format(dx,dy,dth,dist2goal))
 
 
-        d_theta = self.wrapToPi(math.atan2((goal_y-y),(goal_x-x)) - th)
+        d_theta = wrapToPi(math.atan2((goal_y-y),(goal_x-x)) - th)
 
         self.turnInPlace(d_theta) #turn towards goal, anglesinrad
         dist = math.sqrt(math.pow(goal_x-x,2) + math.pow(goal_y-y,2))
         self.driveStraight(dist, speed=0.05)
-        self.turnInPlace(self.wrapToPi(goal_th - (th + d_theta)))
+        self.turnInPlace(wrapToPi(goal_th - (th + d_theta)))
 
         endPose = self.getWorldPose()
         return endPose
@@ -599,21 +556,12 @@ class CozmoRos(object):
         self.path_received = 0
         self.waypoints = []
 
-    def wrapToPi(self, theta):
-        if theta > np.pi:
-            theta -= 2.*np.pi
-        if theta < -np.pi:
-            theta += 2.*np.pi
-        return theta
-
 
     def run(self, update_rate=60):
         """
         Publish data continuously with given rate.
-
         :type   update_rate:    int
         :param  update_rate:    The update rate.
-
         """
         r = rospy.Rate(update_rate)
         while not rospy.is_shutdown():
@@ -649,62 +597,15 @@ class CozmoRos(object):
 def cozmo_app(coz_conn):
     """
     The main function of the cozmo ROS driver.
-
     This function is called by cozmo SDK!
     Use "cozmo.connect(cozmo_app)" to run.
-
     :type   coz_conn:   cozmo.Connection
     :param  coz_conn:   The connection handle to cozmo robot.
-
     """
     coz = coz_conn.wait_for_robot()
     coz.camera.image_stream_enabled = True
     coz_ros = CozmoRos(coz)
     coz_ros.run()
-
-
-# reused as original is not Python3 compatible
-class TransformBroadcaster(object):
-    """
-    :class:`TransformBroadcaster` is a convenient way to send transformation updates on the ``"/tf"`` message topic.
-    """
-
-    def __init__(self, queue_size=100):
-        self.pub_tf = rospy.Publisher("/tf", TFMessage, queue_size=queue_size)
-
-    def send_transform(self, translation, rotation, time, child, parent):
-        """
-        :param translation: the translation of the transformation as a tuple (x, y, z)
-        :param rotation: the rotation of the transformation as a tuple (x, y, z, w)
-        :param time: the time of the transformation, as a rospy.Time()
-        :param child: child frame in tf, string
-        :param parent: parent frame in tf, string
-
-        Broadcast the transformation from tf frame child to parent on ROS topic ``"/tf"``.
-        """
-
-        t = TransformStamped()
-        t.header.frame_id = parent
-        t.header.stamp = time
-        t.child_frame_id = child
-        t.transform.translation.x = translation[0]
-        t.transform.translation.y = translation[1]
-        t.transform.translation.z = translation[2]
-
-        t.transform.rotation.x = rotation[0]
-        t.transform.rotation.y = rotation[1]
-        t.transform.rotation.z = rotation[2]
-        t.transform.rotation.w = rotation[3]
-
-        self.send_transform_message(t)
-
-    def send_transform_message(self, transform):
-        """
-        :param transform: geometry_msgs.msg.TransformStamped
-        Broadcast the transformation from tf frame child to parent on ROS topic ``"/tf"``.
-        """
-        tfm = TFMessage([transform])
-        self.pub_tf.publish(tfm)
 
 
 if __name__ == '__main__':

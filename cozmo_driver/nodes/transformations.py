@@ -177,6 +177,12 @@ import numpy
 # Documentation in HTML format can be generated with Epydoc
 __docformat__ = "restructuredtext en"
 
+def wrapToPi(self, theta):
+    if theta > np.pi:
+        theta -= 2.*np.pi
+    if theta < -np.pi:
+        theta += 2.*np.pi
+    return theta
 
 def identity_matrix():
     """Return 4x4 identity/unit matrix.

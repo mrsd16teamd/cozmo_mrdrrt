@@ -13,7 +13,6 @@
         pkg="cozmo_driver" type="cozmo_driver.py" name="cozmo_driver_node"
         output="screen" >
     <param name="serial_port" value="04e0d4110a65c4ee" />
-    <!-- <param name="serial_port" value="ZY223BMTVP" /> -->
     <param name="odom_frame" value="cozmo1/odom" />
     <param name="footprint_frame" value="cozmo1/base_footprint" />
     <param name="base_frame" value="cozmo1/base_link" />
@@ -25,7 +24,6 @@
   <node ns="cozmo2"
         pkg="cozmo_driver" type="cozmo_driver.py" name="cozmo_driver_node"
         output="screen" >
-    <!-- <param name="serial_port" value="04e0d4110a65c4ee" /> -->
     <param name="serial_port" value="ZY223BMTVP" />
     <param name="odom_frame" value="cozmo2/odom" />
     <param name="footprint_frame" value="cozmo2/base_footprint" />
