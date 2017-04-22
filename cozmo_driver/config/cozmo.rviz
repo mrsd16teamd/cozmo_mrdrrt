@@ -5,13 +5,11 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Status1
-        - /Grid1
         - /TF1
         - /TF1/Frames1
         - /Cozmo1
-        - /Map1
-      Splitter Ratio: 0.5
-    Tree Height: 341
+      Splitter Ratio: 0.642442
+    Tree Height: 230
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -33,7 +31,10 @@ Panels:
     SyncSource: Camera
   - Class: rviz_plugin_tutorials/Teleop
     Name: Teleop
-    Topic: cozmo/cmd_vel
+    Topic: cozmo1/cmd_vel
+  - Class: rviz_plugin_tutorials/Teleop
+    Name: Teleop
+    Topic: cozmo2/cmd_vel
 Visualization Manager:
   Class: ""
   Displays:
@@ -60,19 +61,29 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: false
-        base_footprint:
+        cozmo1/base_footprint:
           Value: true
-        base_link:
+        cozmo1/base_link:
           Value: false
-        camera_link:
+        cozmo1/camera_link:
           Value: false
+        cozmo1/head_link:
+          Value: false
+        cozmo1/odom:
+          Value: true
+        cozmo2/base_footprint:
+          Value: true
+        cozmo2/base_link:
+          Value: false
+        cozmo2/camera_link:
+          Value: false
+        cozmo2/head_link:
+          Value: false
+        cozmo2/odom:
+          Value: true
         cozmo_camera:
           Value: false
-        head_link:
-          Value: false
         map:
-          Value: true
-        odom:
           Value: true
       Marker Scale: 0.1
       Name: TF
@@ -81,13 +92,19 @@ Visualization Manager:
       Show Names: true
       Tree:
         map:
-          odom:
-            base_footprint:
-              base_link:
-                head_link:
-                  camera_link:
+          cozmo1/odom:
+            cozmo1/base_footprint:
+              cozmo1/base_link:
+                cozmo1/head_link:
+                  cozmo1/camera_link:
                     cozmo_camera:
                       {}
+          cozmo2/odom:
+            cozmo2/base_footprint:
+              cozmo2/base_link:
+                cozmo2/head_link:
+                  cozmo2/camera_link:
+                    {}
       Update Interval: 0
       Value: true
     - Class: rviz/Group
@@ -111,7 +128,7 @@ Visualization Manager:
           Class: rviz_imu_plugin/Imu
           Enabled: true
           Name: Imu
-          Topic: /cozmo/imu
+          Topic: /cozmo1/imu
           Unreliable: false
           Value: true
         - Class: rviz/Image
@@ -129,7 +146,7 @@ Visualization Manager:
         - Class: rviz/Camera
           Enabled: true
           Image Rendering: background and overlay
-          Image Topic: /cozmo_camera/image
+          Image Topic: /cozmo1/image
           Name: Camera
           Overlay Alpha: 0.5
           Queue Size: 2
@@ -137,6 +154,7 @@ Visualization Manager:
           Unreliable: false
           Value: true
           Visibility:
+            Camera: true
             Cozmo:
               Image: true
               Imu: true
@@ -157,6 +175,27 @@ Visualization Manager:
       Topic: /map
       Unreliable: false
       Value: true
+    - Class: rviz/Camera
+      Enabled: true
+      Image Rendering: background and overlay
+      Image Topic: /cozmo2/image
+      Name: Camera
+      Overlay Alpha: 0.5
+      Queue Size: 2
+      Transport Hint: raw
+      Unreliable: false
+      Value: true
+      Visibility:
+        Cozmo:
+          Camera: true
+          Image: true
+          Imu: true
+          Value: true
+        Grid: true
+        Map: true
+        TF: true
+        Value: true
+      Zoom Factor: 1
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -219,7 +258,7 @@ Window Geometry:
   Hide Right Dock: true
   Image:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd00000004000000000000016a00000396fc020000000cfb0000001200530065006c0065006300740069006f006e00000001e10000009b0000006400fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c0061007900730100000028000001e4000000dd00fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb0000000c00540065006c0065006f00700100000212000000a80000004900fffffffb0000000c00430061006d00650072006101000002c0000000fe0000001600fffffffb0000000a0049006d006100670065000000030b000000b30000001600fffffffb0000000c00430061006d00650072006101000002f4000000ca0000000000000000000000010000010f00000396fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000002800000396000000b000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e100000197000000030000073f0000003efc0100000002fb0000000800540069006d006501000000000000073f000002f600fffffffb0000000800540069006d00650100000000000004500000000000000000000005cf0000039600000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd00000004000000000000016a00000396fc020000000dfb0000001200530065006c0065006300740069006f006e00000001e10000009b0000006400fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000002800000175000000dd00fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb0000000c00540065006c0065006f007001000001a3000000810000004900fffffffb0000000c00430061006d006500720061010000022a000000ca0000001600fffffffb0000000c00430061006d00650072006101000002fa000000c40000001600fffffffb0000000a0049006d006100670065000000030b000000b30000001600fffffffb0000000c00430061006d00650072006101000002f4000000ca0000000000000000000000010000010f00000396fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000002800000396000000b000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e100000197000000030000073f0000003efc0100000002fb0000000800540069006d006501000000000000073f000002f600fffffffb0000000800540069006d00650100000000000004500000000000000000000005cf0000039600000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Teleop:

@@ -85,7 +85,11 @@ class CozmoRos(object):
         self._last_pose = self._cozmo.pose
         self._wheel_vel = (0, 0)
         self._optical_frame_orientation = quaternion_from_euler(-np.pi/2., .0, -np.pi/2.)
-        self._camera_info_manager = CameraInfoManager('cozmo_camera', namespace='/cozmo_camera')
+        # self._camera_info_manager = CameraInfoManager('cozmo_camera', namespace='/cozmo_camera')
+        ns = rospy.get_namespace()
+        ns = ns[:-1]
+        print(ns)
+        self._camera_info_manager = CameraInfoManager('cozmo_camera', namespace=ns)
         self._last_seen_cube = []
         self.cubes_visible = 0
         self.waypoints = []
@@ -113,9 +117,10 @@ class CozmoRos(object):
         self._imu_pub = rospy.Publisher('imu', Imu, queue_size=1)
         self._battery_pub = rospy.Publisher('battery', BatteryState, queue_size=1)
         # Note: camera is published under global topic (preceding "/")
-        self._image_pub = rospy.Publisher('/cozmo_camera/image', Image, queue_size=10)
-        self._camera_info_pub = rospy.Publisher('/cozmo_camera/camera_info', CameraInfo, queue_size=10)
-
+        # self._image_pub = rospy.Publisher('/cozmo_camera/image', Image, queue_size=10)
+        # self._camera_info_pub = rospy.Publisher('/cozmo_camera/camera_info', CameraInfo, queue_size=10)
+        self._image_pub = rospy.Publisher('image', Image, queue_size=10)
+        self._camera_info_pub = rospy.Publisher('camera_info', CameraInfo, queue_size=10)
         # subs
         self._backpack_led_sub = rospy.Subscriber(
             'backpack_led', ColorRGBA, self._set_backpack_led, queue_size=1)
@@ -704,7 +709,10 @@ class TransformBroadcaster(object):
 
 if __name__ == '__main__':
     rospy.init_node('cozmo_driver')
+    serial_port = rospy.get_param('~serial_port')
     try:
-        cozmo.connect(cozmo_app)
+        conn1 = cozmo.AndroidConnector(serial=serial_port)
+        # cozmo.IOSConnector(serial='02e0236b')
+        cozmo.connect(cozmo_app, connector=conn1)
     except cozmo.ConnectionError as e:
         sys.exit('A connection error occurred: {}'.format(e))
