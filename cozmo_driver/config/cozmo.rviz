@@ -197,6 +197,8 @@ Visualization Manager:
       Topic: /initialpose
     - Class: rviz/SetGoal
       Topic: /cozmo1/goal
+    - Class: rviz/SetGoal
+      Topic: /cozmo2/goal
     - Class: rviz/PublishPoint
       Single click: true
       Topic: /clicked_point
