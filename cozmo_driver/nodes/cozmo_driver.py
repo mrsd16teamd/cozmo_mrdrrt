@@ -510,6 +510,7 @@ class CozmoRos(object):
         # print("Going to: x={}, y={}, th={} ".format(goal_x,goal_y,goal_th))
         # print("Distance: x={}, y={}, th={}, norm={}".format(dx,dy,dth, dist2goal))
 
+        self.turnInPlace(d_theta) #turn towards goal, anglesinrad
         dist = math.sqrt(math.pow(goal_x-x,2) + math.pow(goal_y-y,2))
         self.driveStraight(dist)
         self.turnInPlace(wrapToPi(goal_th - (th + d_theta)))
