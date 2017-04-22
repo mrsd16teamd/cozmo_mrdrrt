@@ -9,32 +9,33 @@
   -->
 
   <!-- Cozmo driver -->
-<!--   <node ns="cozmo1"
+  <node ns="cozmo0"
         pkg="cozmo_driver" type="cozmo_driver.py" name="cozmo_driver_node"
         output="screen" >
     <param name="serial_port" value="04e0d4110a65c4ee" />
+    <param name="odom_frame" value="cozmo0/odom" />
+    <param name="footprint_frame" value="cozmo0/base_footprint" />
+    <param name="base_frame" value="cozmo0/base_link" />
+    <param name="head_frame" value="cozmo0/head_link" />
+    <param name="camera_frame" value="cozmo0/camera_link" />
+    <param name="camera_info_url" value="file://$(find cozmo_driver)/config/cozmo_camera.yaml" />
+  </node>
+
+  <node ns="cozmo0" pkg="mrdrrt" type="prm_node.py" name="prm_node" output="screen" />
+
+
+<!--   <node ns="cozmo1"
+        pkg="cozmo_driver" type="cozmo_driver.py" name="cozmo_driver_node"
+        output="screen" >
+    <param name="serial_port" value="ZY223BMTVP" />
     <param name="odom_frame" value="cozmo1/odom" />
     <param name="footprint_frame" value="cozmo1/base_footprint" />
     <param name="base_frame" value="cozmo1/base_link" />
     <param name="head_frame" value="cozmo1/head_link" />
     <param name="camera_frame" value="cozmo1/camera_link" />
+
     <param name="camera_info_url" value="file://$(find cozmo_driver)/config/cozmo_camera.yaml" />
   </node> -->
-
-  <node ns="cozmo2" pkg="mrdrrt" type="prm_node.py" name="prm_node" output="screen" />
-
-  <node ns="cozmo2"
-        pkg="cozmo_driver" type="cozmo_driver.py" name="cozmo_driver_node"
-        output="screen" >
-    <param name="serial_port" value="ZY223BMTVP" />
-    <param name="odom_frame" value="cozmo2/odom" />
-    <param name="footprint_frame" value="cozmo2/base_footprint" />
-    <param name="base_frame" value="cozmo2/base_link" />
-    <param name="head_frame" value="cozmo2/head_link" />
-    <param name="camera_frame" value="cozmo2/camera_link" />
-
-    <param name="camera_info_url" value="file://$(find cozmo_driver)/config/cozmo_camera.yaml" />
-  </node>
 
   <!--
   INPUT

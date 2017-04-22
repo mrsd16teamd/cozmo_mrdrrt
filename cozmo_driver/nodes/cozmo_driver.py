@@ -136,7 +136,7 @@ class CozmoRos(object):
         # self.say_something("Let's go!")
 
         #Set backpack color to uniquely identify cozmo #
-        color_map = {1:[255, 0, 0, 1], 2:[0, 255, 0, 1], 3:[0, 0, 255, 1]} #cozmo1 is red, cozmo2 is green, cozmo3 is blue
+        color_map = {0:[255, 0, 0, 1], 1:[0, 255, 0, 1], 2:[0, 0, 255, 1]} #cozmo1 is red, cozmo2 is green, cozmo3 is blue
         cozmo_no = int(self.ns[-1])
         # print(cozmo_no)
         color = color_map[cozmo_no]
