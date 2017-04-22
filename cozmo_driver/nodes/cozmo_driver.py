@@ -446,14 +446,6 @@ class CozmoRos(object):
         z_odomToWorld = self._last_seen_cube[0][2]
         q_odomToWorld = self._last_seen_cube[1]
 
-        # R_odomToWorld = quaternion_matrix(q_odomToWorld)
-
-        # T_odomToWorld = np.zeros((4,4))
-        # T_odomToWorld[0] = np.array([R_odomToWorld[0][0], R_odomToWorld[0][1], R_odomToWorld[0][2], x_odomToWorld])
-        # T_odomToWorld[1] = np.array([R_odomToWorld[1][0], R_odomToWorld[1][1], R_odomToWorld[1][2], y_odomToWorld])
-        # T_odomToWorld[2] = np.array([R_odomToWorld[2][0], R_odomToWorld[2][1], R_odomToWorld[2][2], z_odomToWorld])
-        # T_odomToWorld[3][3] = 1
-
         T_odomToWorld = self.poseToTransformation(x_odomToWorld, y_odomToWorld, q_odomToWorld)
 
         T_worldToOdom = np.linalg.inv(T_odomToWorld)
@@ -482,7 +474,7 @@ class CozmoRos(object):
         # y = p[1] + y_odomToRobot
         print("worldToOdom x: {} y: {} th: {}".format(x_worldToOdom, y_worldToOdom, th_worldToOdom))
 
-        T_worldToRobot = np.dot(T_odomToRobot, T_worldToOdom)
+        T_worldToRobot = np.dot(T_worldToOdom, T_odomToRobot)
         
         th = wrapToPi(euler_from_matrix(T_worldToRobot[0:3][0:3])[2])
         x = T_worldToRobot[0][3]
