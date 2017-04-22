@@ -92,13 +92,8 @@ class PRMPlannerNode(object):
                 pose.pose.position.x = config[0]
                 pose.pose.position.y = config[1]
 
-                # TODO test this
-                yaw = config[2]
-                quat = tf.transformations.quaternion_from_euler(0, 0, yaw)
-                pose.pose.orientation.x = quat[0]
-                pose.pose.orientation.y = quat[1]
-                pose.pose.orientation.z = quat[2]
-                pose.pose.orientation.w = quat[3]
+                quat = tf.transformations.quaternion_from_euler(0, 0, config[2])
+                pose.pose.orientation.x, pose.pose.orientation.y, pose.pose.orientation.z, pose.pose.orientation.w = quat[0], quat[1], quat[2], quat[3]
                 pub_path.append(pose)
                 print(config)
 

@@ -46,7 +46,7 @@ from transform_broadcaster import TransformBroadcaster
 from tf2_msgs.msg import TFMessage
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import (Twist, TransformStamped, PoseStamped)
-from std_msgs.msg import (String, Float64, ColorRGBA)
+from std_msgs.msg import (String, Float64, ColorRGBA, Header)
 from sensor_msgs.msg import (Image, CameraInfo, BatteryState, Imu, JointState)
 from nav_msgs.msg import Path
 
@@ -70,9 +70,7 @@ class CozmoRos(object):
         self._last_pose = self._cozmo.pose
         self._wheel_vel = (0, 0)
         self._optical_frame_orientation = quaternion_from_euler(-np.pi/2., .0, -np.pi/2.)
-        # self._camera_info_manager = CameraInfoManager('cozmo_camera', namespace='/cozmo_camera')
-        ns = rospy.get_namespace()
-        ns = ns[:-1]
+        ns = rospy.get_namespace()[-1]
         self._camera_info_manager = CameraInfoManager('cozmo_camera', namespace=ns)
         self._last_seen_cube_pose = []
         self.cubes_visible = 0
@@ -82,6 +80,8 @@ class CozmoRos(object):
         self.goal_received = 0
         self.odom = Odometry()
         self.worldPose = [0.0, 0.0, 0.0]
+        self.last_worldToOdom = [0, 0, np.array([0,0,0,1])]
+
         # tf
         self._tfb = TransformBroadcaster()
 
@@ -120,37 +120,32 @@ class CozmoRos(object):
         self._camera_info_manager.setURL(camera_info_url)
         self._camera_info_manager.loadCameraInfo()
 
-        # move head to zero angle
-        print("Cozmo says - \"Give me a sec to fix my head\"") #Doing this without sleep somehow didn't work as well - Kazu 
-        sleep(1)
+        # move head to horizontal position
         cmd = Float64()
         cmd.data = 0
         self._move_head(cmd)
-        print("\"Alright I'm good, let's gooooo\"")
 
         # Define cube positions. Make location empty list if not using 
-        # 1: 'o' with an arm
-        # 2: looks like a 'b'
-        # 3: paperclip
+        # 1: 'o' with an arm,  2: looks like a 'b',  3: paperclip
         # self.cube_locations = {1:[], 2:[0.0, 0.0, 0.0], 3:[]} 
         self.cube_locations = {1:[-0.275, -0.275, -np.pi/2], 2:[0.275, 0.0, 0.0], 3:[-0.275, 0.275, np.pi/2]} 
         self.cube_frames = {1:'cube1', 2:'cube2', 3:'cube3'}
 
-        self.last_worldToOdom = [0, 0, np.array([0,0,0,1])]
+        # self.say_something("Let's go!")
 
 
     def turnInPlace(self, angle):
         angle = cozmo.util.radians(angle)
         action = self._cozmo.turn_in_place(angle, num_retries=3, in_parallel=False)
-        print("turning in place by {}".format(angle))
+        print("Turning in place by {}".format(angle))
         action.wait_for_completed()
 
-    def driveStraight(self, dist, speed):
+    def driveStraight(self, dist, speed=0.1):
         dist = dist*1000 #convert to mm
         speed = speed*1000
         dist = cozmo.util.distance_mm(dist)
         speed = cozmo.util.Speed(speed)
-        print("driving straight for {} at {}".format(dist, speed))
+        print("Driving straight for {} at {} m/s".format(dist, speed))
         action = self._cozmo.drive_straight(dist, speed,  should_play_anim=False, in_parallel=False)
         action.wait_for_completed()
 
@@ -221,6 +216,11 @@ class CozmoRos(object):
         :param  msg:    The text message to say.
         """
         self._cozmo.say_text(msg.data, in_parallel=True).wait_for_completed()
+
+    def say_something(self, phrase):
+        to_say = String()
+        to_say.data = phrase
+        self._say_callback(to_say)
 
     def _log_objects(self):
         """
@@ -449,7 +449,6 @@ class CozmoRos(object):
         q_odomToCube = self._last_seen_cube_pose[1]
         T_odomToCube = poseToTransformation(x_odomToCube, y_odomToCube, q_odomToCube)
 
-        # TODO put some processing here
         cube_id = self._last_seen_cube_id
         T_worldToCube = poseToTransformation(self.cube_locations[cube_id][0], self.cube_locations[cube_id][1], self.cube_locations[cube_id][2])
         T_cubeToWorld = np.linalg.inv(T_worldToCube)
@@ -467,13 +466,10 @@ class CozmoRos(object):
         th_odomToRobot = self._cozmo.pose_angle.radians
         T_odomToRobot = poseToTransformation(x_odomToRobot, y_odomToRobot, th_odomToRobot)
 
-        print("odomToRobot x: {} y: {} th: {}".format(x_odomToRobot, y_odomToRobot, th_odomToRobot))
         x_worldToOdom , y_worldToOdom, q_worldToOdom = self.last_worldToOdom
         T_worldToOdom = poseToTransformation(x_worldToOdom, y_worldToOdom, q_worldToOdom)
         R_worldToOdom = T_worldToOdom[0:3][0:3]
         th_worldToOdom = euler_from_matrix(R_worldToOdom)[2]
-
-        print("worldToOdom x: {} y: {} th: {}".format(x_worldToOdom, y_worldToOdom, th_worldToOdom))
 
         T_worldToRobot = np.dot(T_worldToOdom, T_odomToRobot)
         
@@ -483,8 +479,26 @@ class CozmoRos(object):
 
         return x, y, th
 
+    # def makePathFromConfigs(self, configs):
+    #     path_msg = Path()
+    #     h = Header()
+    #     h.stamp = rospy.Time.now()
+    #     path_msg.header = h
+
+    #     path = []
+    #     for config in configs: 
+    #         pose = PoseStamped()
+    #         pose.pose.position.x, pose.pose.position.y = config[0], config[1]
+
+    #         quat = quaternion_from_euler(0, 0, config[2])
+    #         pose.pose.orientation.x, pose.pose.orientation.y, pose.pose.orientation.z, pose.pose.orientation.w = quat[0], quat[1], quat[2], quat[3]
+    #         path.append(pose)
+
+    #     path_msg.poses = path
+    #     return path_msg
+
     def goToWaypoint(self, waypoint):
-        # TODO this drifts significantly over long distances - have this incrementally relocalize along path to goal
+        # TODO this drifts significantly over long distances - have this incrementally relocalize along path to goal. same for large angles
         
         ## make it a posestamped object
         # curr_pose = PoseStamped()
@@ -508,15 +522,24 @@ class CozmoRos(object):
         dy = goal_y -y
         dist2goal = np.linalg.norm(np.array([dx, dy]))
 
-        print("Now at: x={}, y={}, th={} ".format(x,y,th))
-        print("Going to: x={}, y={}, th={} ".format(goal_x,goal_y,goal_th))
-        print("Distance: x={}, y={}, th={}, norm={}".format(dx,dy,dth, dist2goal))
-
         d_theta = wrapToPi(math.atan2((goal_y-y),(goal_x-x)) - th)
 
+        # print("Now at: x={}, y={}, th={} ".format(x,y,th))
+        # print("Going to: x={}, y={}, th={} ".format(goal_x,goal_y,goal_th))
+        # print("Distance: x={}, y={}, th={}, norm={}".format(dx,dy,dth, dist2goal))
+
+        # long_dist_thres = 0.5
+        # if dist2goal > long_dist_thres:
+        #     print("goal is far!")
+        #     sleep(2)
+        #     point1 = [(goal_x-x)/3+x, (goal_y-y)/3, th+d_theta]
+        #     point2 = [(goal_x-x)/3*2+x, (goal_y-y)/3*2, th+d_theta]
+        #     path = self.makePathFromConfigs([point1, point2, [goal_x, goal_y, goal_th]])
+        #     self.executePath(path.poses)
+        # else:
         self.turnInPlace(d_theta) #turn towards goal, anglesinrad
         dist = math.sqrt(math.pow(goal_x-x,2) + math.pow(goal_y-y,2))
-        self.driveStraight(dist, speed=0.05)
+        self.driveStraight(dist)
         self.turnInPlace(wrapToPi(goal_th - (th + d_theta)))
 
         endPose = self.getWorldPose()
@@ -525,17 +548,23 @@ class CozmoRos(object):
         return endPose
 
     def executePath(self, path):
-
         for waypoint in path:
-            waypointReached = 0
-            while not (waypointReached):
-                waypointReached = self.goToWaypoint(waypoint)
+            self.goToWaypoint(waypoint)
+            self.update_state()
             
-
         print ("Goal Reached!")
         self.path_received = 0
         self.waypoints = []
 
+
+    def update_state(self, update_rate=60):
+        self._publish_tf(update_rate)
+        self._publish_image()
+        self._log_objects()
+        self._publish_joint_state()
+        self._publish_imu()
+        self._publish_battery()
+        self._publish_odometry()
 
     def run(self, update_rate=60):
         """
@@ -545,19 +574,10 @@ class CozmoRos(object):
         """
         r = rospy.Rate(update_rate)
         while not rospy.is_shutdown():
-            self._publish_tf(update_rate)
-            self._publish_image()
-            self._log_objects()
-            self._publish_joint_state()
-            self._publish_imu()
-            self._publish_battery()
-            self._publish_odometry()
-            # self.getWorldPose()
-            # send message repeatedly to avoid idle mode.
-            # This might cause low battery soon
-            # TODO improve this!
+            self.update_state(update_rate)
+
             if self.path_received:
-                print("Path of length {} received, Executing Path: {}".format(len(self.waypoints)), self.waypoints)
+                print("Path of length {} received.".format(len(self.waypoints)))
                 self.executePath(self.waypoints)
             elif self.goal_received:
                 print("Goal received")
@@ -565,9 +585,13 @@ class CozmoRos(object):
                 self.goToWaypoint(self.goal)
                 self.goal_received = 0   
             else:
+                # send message repeatedly to avoid idle mode.
+                # This might cause low battery soon
+                # TODO improve this!
                 self._cozmo.drive_wheels(*self._wheel_vel)
-            # sleep
+
             r.sleep()
+
         # stop events on cozmo
         self._cozmo.stop_all_motors()
 
@@ -590,8 +614,7 @@ if __name__ == '__main__':
     rospy.init_node('cozmo_driver')
     serial_port = rospy.get_param('~serial_port')
     try:
-        conn1 = cozmo.AndroidConnector(serial=serial_port)
-        # cozmo.IOSConnector(serial='02e0236b')
-        cozmo.connect(cozmo_app, connector=conn1)
+        conn = cozmo.AndroidConnector(serial=serial_port)
+        cozmo.connect(cozmo_app, connector=conn)
     except cozmo.ConnectionError as e:
         sys.exit('A connection error occurred: {}'.format(e))
