@@ -484,11 +484,7 @@ class CozmoRos(object):
         return x, y, th
 
     def goToWaypoint(self, waypoint):
-        
-        ## this is currently in robot odom frame
-        # x = self._cozmo.pose.position.x * 0.001
-        # y = self._cozmo.pose.position.y * 0.001
-        # th = self._cozmo.pose_angle.radians
+        # TODO this drifts significantly over long distances - have this incrementally relocalize along path to goal
         
         ## make it a posestamped object
         # curr_pose = PoseStamped()
@@ -497,7 +493,6 @@ class CozmoRos(object):
     
         ## convert current pose to world frame
         worldPose_x, worldPose_y, worldPose_th = self.getWorldPose()
-
         x = worldPose_x
         y = worldPose_y
         th = worldPose_th
@@ -507,15 +502,15 @@ class CozmoRos(object):
         goal_y = waypoint.pose.position.y
         q = waypoint.pose.orientation
         goal_th = euler_from_quaternion(np.array([q.x,q.y,q.z,q.w]))[2]
+        dth = goal_th - th
 
         dx = goal_x -x
         dy = goal_y -y
         dist2goal = np.linalg.norm(np.array([dx, dy]))
-        dth = wrapToPi(goal_th - th)
 
         print("Now at: x={}, y={}, th={} ".format(x,y,th))
         print("Going to: x={}, y={}, th={} ".format(goal_x,goal_y,goal_th))
-        print("Distance: x={}, y={}, th={}, norm={}".format(dx,dy,dth,dist2goal))
+        print("Distance: x={}, y={}, th={}, norm={}".format(dx,dy,dth, dist2goal))
 
         d_theta = wrapToPi(math.atan2((goal_y-y),(goal_x-x)) - th)
 
@@ -525,6 +520,8 @@ class CozmoRos(object):
         self.turnInPlace(wrapToPi(goal_th - (th + d_theta)))
 
         endPose = self.getWorldPose()
+        print("Ended up at: {}".format(endPose))
+
         return endPose
 
     def executePath(self, path):
@@ -565,9 +562,7 @@ class CozmoRos(object):
             elif self.goal_received:
                 print("Goal received")
                 goalReached = 0
-                # while not goalReached:
-                endPose = self.goToWaypoint(self.goal)
-                print("Ended up at: {}".format(endPose))
+                self.goToWaypoint(self.goal)
                 self.goal_received = 0   
             else:
                 self._cozmo.drive_wheels(*self._wheel_vel)
