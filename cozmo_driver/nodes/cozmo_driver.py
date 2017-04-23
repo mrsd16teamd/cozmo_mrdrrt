@@ -207,7 +207,7 @@ class CozmoRos(object):
             self.say("Let's go!")
         self.goal = goal
         self.goal_received = 1
-        self.say("okay")
+        # self.say("okay")
 
     def path_callback(self, path):
         self.waypoints = path.poses
