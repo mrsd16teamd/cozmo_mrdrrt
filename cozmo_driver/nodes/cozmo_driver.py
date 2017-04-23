@@ -46,7 +46,7 @@ from transform_broadcaster import TransformBroadcaster
 from tf2_msgs.msg import TFMessage
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import (Twist, TransformStamped, PoseStamped)
-from std_msgs.msg import (String, Float64, ColorRGBA, Header)
+from std_msgs.msg import (String, Float64, ColorRGBA, Header, Bool, Int8)
 from sensor_msgs.msg import (Image, CameraInfo, BatteryState, Imu, JointState)
 from nav_msgs.msg import Path
 
@@ -78,6 +78,7 @@ class CozmoRos(object):
         self.goal = []
         self.path_received = 0
         self.goal_received = 0
+        self.goal_reached = Int8()
         self.odom = Odometry()
         self.worldPose = [0.0, 0.0, 0.0]
         self.last_worldToOdom = [0, 0, np.array([0,0,0,1])]
@@ -105,6 +106,7 @@ class CozmoRos(object):
         # self._camera_info_pub = rospy.Publisher('/cozmo_camera/camera_info', CameraInfo, queue_size=10)
         self._image_pub = rospy.Publisher('image', Image, queue_size=10)
         self._camera_info_pub = rospy.Publisher('camera_info', CameraInfo, queue_size=10)
+        self._goal_reached_pub = rospy.Publisher('/goal_reached', Int8, queue_size=10)
         # subs
         self._backpack_led_sub = rospy.Subscriber(
             'backpack_led', ColorRGBA, self._set_backpack_led, queue_size=1)
@@ -529,6 +531,11 @@ class CozmoRos(object):
         endPose = self.getWorldPose()
         print("Ended up at: {}".format(endPose))
 
+        self.goal_reached = Int8()
+        self.goal_reached.data = 1
+        self._goal_reached_pub.publish(self.goal_reached)
+
+
         return endPose
 
     def executePath(self, path):
@@ -565,7 +572,9 @@ class CozmoRos(object):
                 self.executePath(self.waypoints)
             elif self.goal_received:
                 print("Goal received")
-                goalReached = 0
+                self.goal_reached = Int8()
+                self.goal_reached.data = 0
+                self._goal_reached_pub.publish(self.goal_reached)
                 self.goToWaypoint(self.goal)
                 self.goal_received = 0   
             else:
