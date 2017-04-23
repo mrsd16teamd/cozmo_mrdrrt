@@ -71,6 +71,7 @@ class CozmoRos(object):
         self._wheel_vel = (0, 0)
         self._optical_frame_orientation = quaternion_from_euler(-np.pi/2., .0, -np.pi/2.)
         self.ns = rospy.get_namespace()[:-1]
+        self.robot_id = int(self.ns[-1])
         self._camera_info_manager = CameraInfoManager('cozmo_camera', namespace=self.ns)
         self._last_seen_cube_pose = []
         self.cubes_visible = 0
@@ -139,9 +140,9 @@ class CozmoRos(object):
 
         #Set backpack color to uniquely identify cozmo #
         color_map = {0:[255, 0, 0, 1], 1:[0, 255, 0, 1], 2:[0, 0, 255, 1]} #cozmo1 is red, cozmo2 is green, cozmo3 is blue
-        cozmo_no = int(self.ns[-1])
+        
         # print(cozmo_no)
-        color = color_map[cozmo_no]
+        color = color_map[self.robot_id]
         light = cozmo.lights.Light(on_color=cozmo.lights.Color(rgb=color), on_period_ms=1000)
         # set lights
         self._cozmo.set_all_backpack_lights(light)
@@ -149,16 +150,16 @@ class CozmoRos(object):
 
     def turnInPlace(self, angle):
         angle = cozmo.util.radians(angle)
-        action = self._cozmo.turn_in_place(angle, num_retries=3, in_parallel=False)
-        print("Turning in place by {}".format(angle))
+        action = self._cozmo.turn_in_place(angle, num_retries=1, in_parallel=False)
+        print("Cozmo {}: \tTurning in place by {}".format(self.robot_id, angle))
         action.wait_for_completed()
 
-    def driveStraight(self, dist, speed=0.1):
+    def driveStraight(self, dist, speed=0.15):
         dist = dist*1000 #convert to mm
         speed = speed*1000
         dist = cozmo.util.distance_mm(dist)
         speed = cozmo.util.Speed(speed)
-        print("Driving straight for {} at {} m/s".format(dist, speed))
+        print("Cozmo {}: \tDriving straight for {} at {}".format(self.robot_id, dist, speed))
         action = self._cozmo.drive_straight(dist, speed,  should_play_anim=False, in_parallel=False)
         action.wait_for_completed()
 
@@ -529,7 +530,7 @@ class CozmoRos(object):
         self.turnInPlace(wrapToPi(goal_th - (th + d_theta)))
 
         endPose = self.getWorldPose()
-        print("Ended up at: {}".format(endPose))
+        print("Cozmo {}: \tEnded up at: {}".format(self.robot_id, endPose))
 
         self.goal_reached = Int8()
         self.goal_reached.data = 1
@@ -543,7 +544,7 @@ class CozmoRos(object):
             self.goToWaypoint(waypoint)
             self.update_state()
             
-        print ("Goal Reached!")
+        print ("Cozmo {}: \tGoal Reached!".format(self.robot_id))
         self.path_received = 0
         self.waypoints = []
 
@@ -568,10 +569,10 @@ class CozmoRos(object):
             self.update_state(update_rate)
 
             if self.path_received:
-                print("Path of length {} received.".format(len(self.waypoints)))
+                print("Cozmo {}: \tPath of length {} received.".format(self.robot_id, len(self.waypoints)))
                 self.executePath(self.waypoints)
             elif self.goal_received:
-                print("Goal received")
+                print("Cozmo {}: \tGoal received".format(self.robot_id))
                 self.goal_reached = Int8()
                 self.goal_reached.data = 0
                 self._goal_reached_pub.publish(self.goal_reached)

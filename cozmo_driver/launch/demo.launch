@@ -4,45 +4,78 @@
   <arg name="use_joy" default="false"            />
   <arg name="joy_dev" default="/dev/input/js0"  />
 
+  <arg name="use_cozmo0"      default="false"  />
+  <arg name="use_cozmo0_PRM"  default="false"  />
+  
+  <arg name="use_cozmo1"      default="true"  />
+  <arg name="use_cozmo2_PRM"  default="true"  />
+
+  <arg name="use_cozmo2"      default="false"  />
+  <arg name="use_cozmo2_PRM"  default="false"  />
+  
+  <arg name="use_mrdrrt"      default="false" />
+  
   <!-- Cozmo drivers -->
-  <node ns="cozmo0"
-        pkg="cozmo_driver" type="cozmo_driver.py" name="cozmo_driver_node"
-        output="screen" >
-    <param name="serial_port" value="04e0d4110a65c4ee" />
-    <param name="odom_frame" value="cozmo0/odom" />
-    <param name="footprint_frame" value="cozmo0/base_footprint" />
-    <param name="base_frame" value="cozmo0/base_link" />
-    <param name="head_frame" value="cozmo0/head_link" />
-    <param name="camera_frame" value="cozmo0/camera_link" />
-    <param name="camera_info_url" value="file://$(find cozmo_driver)/config/cozmo_camera.yaml" />
-  </node>
+  <group if="$(arg use_cozmo0)" ns="cozmo0">
+    <node 
+          pkg="cozmo_driver" type="cozmo_driver.py" name="cozmo_driver_node"
+          output="screen" >
+      <param name="serial_port" value="04e0d4110a65c4ee" />
+      <param name="odom_frame" value="cozmo0/odom" />
+      <param name="footprint_frame" value="cozmo0/base_footprint" />
+      <param name="base_frame" value="cozmo0/base_link" />
+      <param name="head_frame" value="cozmo0/head_link" />
+      <param name="camera_frame" value="cozmo0/camera_link" />
+      <param name="camera_info_url" value="file://$(find cozmo_driver)/config/cozmo_camera.yaml" />
+    </node>
 
-  <node ns="cozmo1"
-        pkg="cozmo_driver" type="cozmo_driver.py" name="cozmo_driver_node"
-        output="screen" >
-    <param name="serial_port" value="ZY223BMTVP" />
-    <param name="odom_frame" value="cozmo1/odom" />
-    <param name="footprint_frame" value="cozmo1/base_footprint" />
-    <param name="base_frame" value="cozmo1/base_link" />
-    <param name="head_frame" value="cozmo1/head_link" />
-    <param name="camera_frame" value="cozmo1/camera_link" />
 
-    <param name="camera_info_url" value="file://$(find cozmo_driver)/config/cozmo_camera.yaml" />
-  </node>
+    <node if="$(arg use_cozmo0_PRM)" pkg="mrdrrt" type="prm_node.py" name="prm_node" output="screen" />
+  </group>
+ 
+ <group if="$(arg use_cozmo1)" ns="cozmo1">
+    <node 
+          pkg="cozmo_driver" type="cozmo_driver.py" name="cozmo_driver_node"
+          output="screen" >
+      <param name="serial_port" value="ZY223BMTVP" />
+      <param name="odom_frame" value="cozmo1/odom" />
+      <param name="footprint_frame" value="cozmo1/base_footprint" />
+      <param name="base_frame" value="cozmo1/base_link" />
+      <param name="head_frame" value="cozmo1/head_link" />
+      <param name="camera_frame" value="cozmo1/camera_link" />
+
+      <param name="camera_info_url" value="file://$(find cozmo_driver)/config/cozmo_camera.yaml" />
+    </node>
+
+    <node if="$(arg use_cozmo1_PRM)" pkg="mrdrrt" type="prm_node.py" name="prm_node" output="screen" />
+  </group>
+
+ <!-- FILL IN SERIAL_PORT BEFORE ENABLING -->
+ <!-- <group if="$(arg use_cozmo2)" ns="cozmo2">
+    <node 
+          pkg="cozmo_driver" type="cozmo_driver.py" name="cozmo_driver_node"
+          output="screen" >
+      <param name="serial_port" value="~" />
+      <param name="odom_frame" value="cozmo2/odom" />
+      <param name="footprint_frame" value="cozmo2/base_footprint" />
+      <param name="base_frame" value="cozmo2/base_link" />
+      <param name="head_frame" value="cozmo2/head_link" />
+      <param name="camera_frame" value="cozmo2/camera_link" />
+
+      <param name="camera_info_url" value="file://$(find cozmo_driver)/config/cozmo_camera.yaml" />
+    </node>
+
+    <node if="$(arg use_cozmo2_PRM)" pkg="mrdrrt" type="prm_node.py" name="prm_node" output="screen" /<name />
+  </group> -->
+  
 
   <!-- Planners -->
-  <!-- <node ns="cozmo0" pkg="mrdrrt" type="prm_node.py" name="prm_node" output="screen" /> -->
-  <node pkg="mrdrrt" type="mrdrrt_node.py" name="mrdrrt_node" output="screen" />
+  
+  <node if="$(arg use_mrdrrt)" pkg="mrdrrt" type="mrdrrt_node.py" name="mrdrrt_node" output="screen" />
 
-  <!--
-  INPUT
-  -->
+  <!--  INPUT  -->
 
   <!-- Control -->
-<!--   <node pkg="twist_mux" type="twist_mux" name="twist_mux_node">
-    <rosparam command="load" file="$(find cozmo_driver)/config/twist_mux.yaml" />
-    <remap from="cmd_vel_out" to="cozmo/cmd_vel"/>
-  </node> -->
 
   <!-- Teleoperation -->
   <group if="$(arg use_joy)">
