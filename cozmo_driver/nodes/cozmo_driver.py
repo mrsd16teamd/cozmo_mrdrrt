@@ -116,7 +116,7 @@ class CozmoRos(object):
         self._lift_sub = rospy.Subscriber('lift_height', Float64, self._move_lift, queue_size=1)
 
         self._path_sub = rospy.Subscriber('path', Path, self.path_callback, queue_size=1)
-        self._goal_sub = rospy.Subscriber('goal', PoseStamped, self.goal_callback, queue_size=1)
+        # self._goal_sub = rospy.Subscriber('goal', PoseStamped, self.goal_callback, queue_size=1) # being used in PRM
 
         # camera info manager
         self._camera_info_manager.setURL(camera_info_url)
