@@ -79,6 +79,7 @@ class CozmoRos(object):
         self.goal = []
         self.path_received = 0
         self.goal_received = 0
+        self.first_goal_received = 0
         self.goal_reached = Int8()
         self.odom = Odometry()
         self.worldPose = [0.0, 0.0, 0.0]
@@ -117,7 +118,7 @@ class CozmoRos(object):
         self._lift_sub = rospy.Subscriber('lift_height', Float64, self._move_lift, queue_size=1)
 
         self._path_sub = rospy.Subscriber('path', Path, self.path_callback, queue_size=1)
-        # self._goal_sub = rospy.Subscriber('goal', PoseStamped, self.goal_callback, queue_size=1) # being used in PRM
+        self._goal_sub = rospy.Subscriber('goal', PoseStamped, self.goal_callback, queue_size=1) # being used in PRM
 
         # camera info manager
         self._camera_info_manager.setURL(camera_info_url)
@@ -132,14 +133,14 @@ class CozmoRos(object):
         # 1: paperclip,  2: looks like a 'b',  3: 'o' with an arm,
         # self.cube_locations = {1:[], 2:[0.0, 0.0, 0.0], 3:[]} 
         # self.cube_locations = {1:[-0.275, -0.275, -np.pi/2], 2:[0.275, 0.0, 0.0], 3:[-0.275, 0.275, np.pi/2]} 
-        if self.ns == 'cozmo0':
+        if self.robot_id == 0:
             self.cube_locations = {2:[-0.19, -0.128, 0], 1:[-0.075, 0.21, 0], 3:[0.21, 0.028, 0]} 
-        if self.ns == 'cozmo1':
+        if self.robot_id == 1:
             self.cube_locations = {1:[-0.19, -0.128, 0], 2:[-0.075, 0.21, 0], 3:[0.21, 0.028, 0]} 
 
         self.cube_frames = {1:'cube1', 2:'cube2', 3:'cube3'}
 
-        # self.say_something("Let's go!")
+        self.say("what is my purpose?")
 
         #Set backpack color to uniquely identify cozmo #
         color_map = {0:[255, 0, 0, 1], 1:[0, 255, 0, 1], 2:[0, 0, 255, 1]} #cozmo1 is red, cozmo2 is green, cozmo3 is blue
@@ -201,8 +202,12 @@ class CozmoRos(object):
         self._cozmo.set_all_backpack_lights(light)
 
     def goal_callback(self, goal):
+        if not self.first_goal_received:
+            self.first_goal_received = 1
+            self.say("Let's go!")
         self.goal = goal
         self.goal_received = 1
+        self.say("okay")
 
     def path_callback(self, path):
         self.waypoints = path.poses
@@ -234,7 +239,7 @@ class CozmoRos(object):
         """
         self._cozmo.say_text(msg.data, in_parallel=True).wait_for_completed()
 
-    def say_something(self, phrase):
+    def say(self, phrase):
         to_say = String()
         to_say.data = phrase
         self._say_callback(to_say)

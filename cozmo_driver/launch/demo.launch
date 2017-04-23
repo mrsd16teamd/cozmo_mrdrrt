@@ -4,16 +4,16 @@
   <arg name="use_joy" default="false"            />
   <arg name="joy_dev" default="/dev/input/js0"  />
 
-  <arg name="use_cozmo0"      default="false"  />
+  <arg name="use_cozmo0"      default="true"  />
   <arg name="use_cozmo0_PRM"  default="false"  />
   
   <arg name="use_cozmo1"      default="true"  />
-  <arg name="use_cozmo2_PRM"  default="true"  />
+  <arg name="use_cozmo1_PRM"  default="false"  />
 
   <arg name="use_cozmo2"      default="false"  />
   <arg name="use_cozmo2_PRM"  default="false"  />
   
-  <arg name="use_mrdrrt"      default="false" />
+  <arg name="use_mrdrrt"      default="true" />
   
   <!-- Cozmo drivers -->
   <group if="$(arg use_cozmo0)" ns="cozmo0">
