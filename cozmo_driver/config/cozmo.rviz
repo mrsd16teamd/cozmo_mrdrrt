@@ -7,6 +7,8 @@ Panels:
         - /Status1
         - /TF1
         - /TF1/Frames1
+        - /Pose1
+        - /Pose2
       Splitter Ratio: 0.642442
     Tree Height: 257
   - Class: rviz/Selection
@@ -69,7 +71,7 @@ Visualization Manager:
         cozmo0/head_link:
           Value: false
         cozmo0/odom:
-          Value: false
+          Value: true
         cozmo1/base_footprint:
           Value: true
         cozmo1/base_link:
@@ -79,7 +81,7 @@ Visualization Manager:
         cozmo1/head_link:
           Value: false
         cozmo1/odom:
-          Value: false
+          Value: true
         cozmo_camera:
           Value: false
         cube1:
@@ -102,14 +104,14 @@ Visualization Manager:
               cozmo0/base_link:
                 cozmo0/head_link:
                   cozmo0/camera_link:
-                    {}
+                    cozmo_camera:
+                      {}
           cozmo1/odom:
             cozmo1/base_footprint:
               cozmo1/base_link:
                 cozmo1/head_link:
                   cozmo1/camera_link:
-                    cozmo_camera:
-                      {}
+                    {}
           cube1:
             {}
           cube2:
@@ -159,6 +161,7 @@ Visualization Manager:
               Value: true
             Grid: true
             Map: true
+            Pose: true
             TF: true
             Value: true
           Zoom Factor: 1
@@ -191,9 +194,40 @@ Visualization Manager:
           Value: true
         Grid: true
         Map: true
+        Pose: true
         TF: true
         Value: true
       Zoom Factor: 1
+    - Alpha: 1
+      Axes Length: 1
+      Axes Radius: 0.1
+      Class: rviz/Pose
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.025
+      Head Radius: 0.025
+      Name: Pose
+      Shaft Length: 0.05
+      Shaft Radius: 0.01
+      Shape: Arrow
+      Topic: /cozmo0/goal
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Axes Length: 1
+      Axes Radius: 0.1
+      Class: rviz/Pose
+      Color: 0; 255; 0
+      Enabled: true
+      Head Length: 0.025
+      Head Radius: 0.025
+      Name: Pose
+      Shaft Length: 0.05
+      Shaft Radius: 0.01
+      Shape: Arrow
+      Topic: /cozmo1/goal
+      Unreliable: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48

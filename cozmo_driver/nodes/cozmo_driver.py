@@ -82,9 +82,10 @@ class CozmoRos(object):
         self.first_goal_received = 0
         self.goal_reached = Int8()
         self.odom = Odometry()
-        self.worldPose = [0.0, 0.0, 0.0]
-        self.last_worldToOdom = [0, 0, np.array([0,0,0,1])]
-
+        if self.robot_id is 0:
+            self.last_worldToOdom = [-0.15, -0.05, np.array([0,0,0,1])]
+        elif self.robot_id is 1:
+            self.last_worldToOdom = [0.15, -0.05, quaternion_from_euler(0,0,np.pi)]
         # tf
         self._tfb = TransformBroadcaster()
 
@@ -237,7 +238,8 @@ class CozmoRos(object):
         :type   msg:    String
         :param  msg:    The text message to say.
         """
-        self._cozmo.say_text(msg.data, in_parallel=True).wait_for_completed()
+        # self._cozmo.say_text(msg.data, in_parallel=True, use_cozmo_voice=False)
+        self._cozmo.say_text(msg.data, in_parallel=True, use_cozmo_voice=True, voice_pitch=-1.0).wait_for_completed()
 
     def say(self, phrase):
         to_say = String()
