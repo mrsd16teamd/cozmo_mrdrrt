@@ -7,7 +7,7 @@ Panels:
         - /Status1
         - /TF1
         - /TF1/Frames1
-        - /Cozmo1
+        - /cozmo0
         - /Camera1
       Splitter Ratio: 0.642442
     Tree Height: 156
@@ -32,10 +32,10 @@ Panels:
     SyncSource: Camera
   - Class: rviz_plugin_tutorials/Teleop
     Name: Teleop
-    Topic: cozmo1/cmd_vel
+    Topic: cozmo0/cmd_vel
   - Class: rviz_plugin_tutorials/Teleop
     Name: Teleop
-    Topic: cozmo2/cmd_vel
+    Topic: cozmo1/cmd_vel
 Visualization Manager:
   Class: ""
   Displays:
@@ -62,15 +62,15 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: false
-        cozmo2/base_footprint:
+        cozmo1/base_footprint:
           Value: true
-        cozmo2/base_link:
+        cozmo1/base_link:
           Value: true
-        cozmo2/camera_link:
+        cozmo1/camera_link:
           Value: false
-        cozmo2/head_link:
+        cozmo1/head_link:
           Value: false
-        cozmo2/odom:
+        cozmo1/odom:
           Value: true
         cozmo_camera:
           Value: false
@@ -89,11 +89,11 @@ Visualization Manager:
       Show Names: true
       Tree:
         map:
-          cozmo2/odom:
-            cozmo2/base_footprint:
-              cozmo2/base_link:
-                cozmo2/head_link:
-                  cozmo2/camera_link:
+          cozmo1/odom:
+            cozmo1/base_footprint:
+              cozmo1/base_link:
+                cozmo1/head_link:
+                  cozmo1/camera_link:
                     cozmo_camera:
                       {}
           cube1:
@@ -112,7 +112,7 @@ Visualization Manager:
           Enabled: false
           History Length: 1
           Name: Imu
-          Topic: /cozmo1/imu
+          Topic: /cozmo0/imu
           Unreliable: false
           Value: false
         - Class: rviz/Image
@@ -130,7 +130,7 @@ Visualization Manager:
         - Class: rviz/Camera
           Enabled: true
           Image Rendering: background and overlay
-          Image Topic: /cozmo1/image
+          Image Topic: /cozmo0/image
           Name: Camera
           Overlay Alpha: 0.5
           Queue Size: 2
@@ -162,7 +162,7 @@ Visualization Manager:
     - Class: rviz/Camera
       Enabled: true
       Image Rendering: background and overlay
-      Image Topic: /cozmo2/image
+      Image Topic: /cozmo1/image
       Name: Camera
       Overlay Alpha: 0.5
       Queue Size: 2
@@ -196,9 +196,9 @@ Visualization Manager:
     - Class: rviz/SetInitialPose
       Topic: /initialpose
     - Class: rviz/SetGoal
-      Topic: /cozmo1/goal
+      Topic: /cozmo0/goal
     - Class: rviz/SetGoal
-      Topic: /cozmo2/goal
+      Topic: /cozmo1/goal
     - Class: rviz/PublishPoint
       Single click: true
       Topic: /clicked_point
