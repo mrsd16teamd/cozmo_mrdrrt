@@ -129,10 +129,13 @@ class CozmoRos(object):
         self._move_head(cmd)
 
         # Define cube positions. Make location empty list if not using 
-        # 1: 'o' with an arm,  2: looks like a 'b',  3: paperclip
+        # 1: paperclip,  2: looks like a 'b',  3: 'o' with an arm,
         # self.cube_locations = {1:[], 2:[0.0, 0.0, 0.0], 3:[]} 
         # self.cube_locations = {1:[-0.275, -0.275, -np.pi/2], 2:[0.275, 0.0, 0.0], 3:[-0.275, 0.275, np.pi/2]} 
-        self.cube_locations = {1:[-0.19, -0.128, 0], 2:[-0.075, 0.21, 0], 3:[0.21, 0.028, 0]} 
+        if self.ns == 'cozmo0':
+            self.cube_locations = {2:[-0.19, -0.128, 0], 1:[-0.075, 0.21, 0], 3:[0.21, 0.028, 0]} 
+        if self.ns == 'cozmo1':
+            self.cube_locations = {1:[-0.19, -0.128, 0], 2:[-0.075, 0.21, 0], 3:[0.21, 0.028, 0]} 
 
         self.cube_frames = {1:'cube1', 2:'cube2', 3:'cube3'}
 
