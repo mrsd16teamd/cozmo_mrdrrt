@@ -1,24 +1,28 @@
 <launch>
 
   <!-- ARGUMENTS -->
-  <arg name="use_joy" default="false"            />
-  <arg name="joy_dev" default="/dev/input/js0"  />
-
   <arg name="use_cozmo0"      default="true"  />  
   <arg name="use_cozmo1"      default="false"  />
   <arg name="use_cozmo2"      default="false"  />
-  
+
+  <arg name="serial_cozmo0"   default="04a367ee13afda5a" /> <!-- 04e0d4110a65c4ee -->
+  <arg name="serial_cozmo1"   default="ZY223BMTVP" />
+  <arg name="serial_cozmo2"   default="fill_later" />
+
+
   <arg name="use_prm"         default="false"  />
   <arg name="use_mrdrrt"      default="false" />
+
+  <arg name="use_joy" default="false"            />
+  <arg name="joy_dev" default="/dev/input/js0"  />
   
   <!-- Cozmo drivers -->
   <group if="$(arg use_cozmo0)" ns="cozmo0">
     <node 
           pkg="cozmo_driver" type="cozmo_driver.py" name="cozmo_driver_node"
           output="screen" >
-      <!-- <param name="serial_port" value="04e0d4110a65c4ee" /> -->
-      <param name="serial_port" value="04a367ee13afda5a" />
-      
+      <param name="serial_port" value="$(arg serial_cozmo0)" />
+
       <param name="odom_frame" value="cozmo0/odom" />
       <param name="footprint_frame" value="cozmo0/base_footprint" />
       <param name="base_frame" value="cozmo0/base_link" />
@@ -34,7 +38,7 @@
     <node 
           pkg="cozmo_driver" type="cozmo_driver.py" name="cozmo_driver_node"
           output="screen" >
-      <param name="serial_port" value="ZY223BMTVP" />
+      <param name="serial_port" value="$(arg serial_cozmo1)" />
       <param name="odom_frame" value="cozmo1/odom" />
       <param name="footprint_frame" value="cozmo1/base_footprint" />
       <param name="base_frame" value="cozmo1/base_link" />
