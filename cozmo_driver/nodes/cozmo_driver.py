@@ -132,12 +132,25 @@ class CozmoRos(object):
         # 1: paperclip,  2: looks like a 'b',  3: 'o' with an arm,
         # self.cube_locations = {1:[], 2:[0.0, 0.0, 0.0], 3:[]} 
         # self.cube_locations = {1:[-0.275, -0.275, -np.pi/2], 2:[0.275, 0.0, 0.0], 3:[-0.275, 0.275, np.pi/2]} 
-        if self.ns == 'cozmo0':
-            self.cube_locations = {2:[-0.19, -0.128, 0], 1:[-0.075, 0.21, 0], 3:[0.21, 0.028, 0]} 
-        if self.ns == 'cozmo1':
-            self.cube_locations = {1:[-0.19, -0.128, 0], 2:[-0.075, 0.21, 0], 3:[0.21, 0.028, 0]} 
+        print('namespace: ', self.ns)
+        if self.ns == '/cozmo0':
+            self.cube_locations = {0:[-0.19, -0.128, 0], 
+                                   1:[-0.075, 0.21, 0], 
+                                   2:[0.21, 0.028, 0], 
+                                   3:[0, 0, 0]} 
+        if self.ns == '/cozmo1':
+            self.cube_locations = {0:[-0.19, -0.128, 0], 
+                                   1:[-0.075, 0.21, 0], 
+                                   2:[0.21, 0.028, 0], 
+                                   3:[0, 0, 0]} 
+        if self.ns == '/cozmo2':
+            self.cube_locations = {0:[-0.19, -0.128, 0], 
+                                   1:[-0.075, 0.21, 0], 
+                                   2:[0.21, 0.028, 0], 
+                                   3:[0, 0, 0]}  
+        print('cube locations: ', self.cube_locations)
 
-        self.cube_frames = {1:'cube1', 2:'cube2', 3:'cube3'}
+        self.cube_frames = {0:'cube0', 1:'cube1', 2:'cube2', 3:'stacked_cubes'}
 
         # self.say_something("Let's go!")
 
@@ -234,7 +247,7 @@ class CozmoRos(object):
         """
         self._cozmo.say_text(msg.data, in_parallel=True).wait_for_completed()
 
-    def say_something(self, phrase):
+    def say(self, phrase):
         to_say = String()
         to_say.data = phrase
         self._say_callback(to_say)
@@ -254,6 +267,8 @@ class CozmoRos(object):
             q = (obj.pose.rotation.q1, obj.pose.rotation.q2, obj.pose.rotation.q3, obj.pose.rotation.q0)
             self._last_seen_cube_pose = [(x,y,z),q,now]
             self._last_seen_cube_id = obj.object_id
+        if self.cubes_visible is 2:
+            self._last_seen_cube_id = 3
 
     def _publish_image(self):
         """
@@ -381,6 +396,7 @@ class CozmoRos(object):
         head_frame -> camera_frame
         camera_frame -> camera_optical_frame
         """
+
         now = rospy.Time.now()
         x = self._cozmo.pose.position.x * 0.001
         y = self._cozmo.pose.position.y * 0.001
@@ -389,7 +405,7 @@ class CozmoRos(object):
         #publish world -> odom frame
         if len(self._last_seen_cube_pose) != 0:
             
-            if self.cubes_visible > 0 and len(self.cube_locations[self._last_seen_cube_id]) is not 0:
+            if self.cubes_visible > 0:
                 worldToOdom = self.getWorldtoOdomTransform() #takes in robotToWorld and OdomToRobot and returns WorldToOdom
                 q = worldToOdom[2]
                 now = rospy.Time.now()
@@ -463,17 +479,22 @@ class CozmoRos(object):
         x_odomToCube = self._last_seen_cube_pose[0][0]
         y_odomToCube = self._last_seen_cube_pose[0][1]
         z_odomToCube = self._last_seen_cube_pose[0][2]
-        q_odomToCube = self._last_seen_cube_pose[1]
-        T_odomToCube = poseToTransformation(x_odomToCube, y_odomToCube, q_odomToCube)
+        yaw_odomToCube = euler_from_quaternion(self._last_seen_cube_pose[1])[2]
+        T_odomToCube = poseToTransformation(x_odomToCube, y_odomToCube, yaw_odomToCube)
 
         cube_id = self._last_seen_cube_id
+
+        # print('In getWorldtoOdomTransform')
+        # print(cube_id)
+        # print(self.cube_locations[cube_id])
+
         T_worldToCube = poseToTransformation(self.cube_locations[cube_id][0], self.cube_locations[cube_id][1], self.cube_locations[cube_id][2])
         T_cubeToWorld = np.linalg.inv(T_worldToCube)
         T_worldToOdom = np.linalg.inv(np.dot(T_odomToCube, T_cubeToWorld))
 
         x = T_worldToOdom[0][3]
         y = T_worldToOdom[1][3]
-        q = quaternion_from_matrix(T_worldToOdom)
+        q = quaternion_from_euler(0, 0, euler_from_matrix(T_worldToOdom)[2])
 
         return [x, y, q]
 
