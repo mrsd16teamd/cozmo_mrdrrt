@@ -79,11 +79,13 @@ class CozmoRos(object):
         self.goal = []
         self.path_received = 0
         self.goal_received = 0
+        self.first_goal_received = 0
         self.goal_reached = Int8()
         self.odom = Odometry()
-        self.worldPose = [0.0, 0.0, 0.0]
-        self.last_worldToOdom = [0, 0, np.array([0,0,0,1])]
-
+        if self.robot_id is 0:
+            self.last_worldToOdom = [-0.15, -0.05, np.array([0,0,0,1])]
+        elif self.robot_id is 1:
+            self.last_worldToOdom = [0.15, -0.05, quaternion_from_euler(0,0,np.pi)]
         # tf
         self._tfb = TransformBroadcaster()
 
@@ -117,7 +119,7 @@ class CozmoRos(object):
         self._lift_sub = rospy.Subscriber('lift_height', Float64, self._move_lift, queue_size=1)
 
         self._path_sub = rospy.Subscriber('path', Path, self.path_callback, queue_size=1)
-        # self._goal_sub = rospy.Subscriber('goal', PoseStamped, self.goal_callback, queue_size=1) # being used in PRM
+        self._goal_sub = rospy.Subscriber('goal', PoseStamped, self.goal_callback, queue_size=1) # being used in PRM
 
         # camera info manager
         self._camera_info_manager.setURL(camera_info_url)
@@ -152,7 +154,7 @@ class CozmoRos(object):
 
         self.cube_frames = {0:'cube0', 1:'cube1', 2:'cube2', 3:'stacked_cubes'}
 
-        # self.say_something("Let's go!")
+        self.say("what is my purpose?")
 
         #Set backpack color to uniquely identify cozmo #
         color_map = {0:[255, 0, 0, 1], 1:[0, 255, 0, 1], 2:[0, 0, 255, 1]} #cozmo1 is red, cozmo2 is green, cozmo3 is blue
@@ -214,8 +216,12 @@ class CozmoRos(object):
         self._cozmo.set_all_backpack_lights(light)
 
     def goal_callback(self, goal):
+        if not self.first_goal_received:
+            self.first_goal_received = 1
+            self.say("Let's go!")
         self.goal = goal
         self.goal_received = 1
+        # self.say("okay")
 
     def path_callback(self, path):
         self.waypoints = path.poses
@@ -245,7 +251,8 @@ class CozmoRos(object):
         :type   msg:    String
         :param  msg:    The text message to say.
         """
-        self._cozmo.say_text(msg.data, in_parallel=True).wait_for_completed()
+        # self._cozmo.say_text(msg.data, in_parallel=True, use_cozmo_voice=False)
+        self._cozmo.say_text(msg.data, in_parallel=True, use_cozmo_voice=True, voice_pitch=-1.0).wait_for_completed()
 
     def say(self, phrase):
         to_say = String()
@@ -269,6 +276,7 @@ class CozmoRos(object):
             self._last_seen_cube_id = obj.object_id
         if self.cubes_visible is 2:
             self._last_seen_cube_id = 3
+        print('I see cube ', self._last_seen_cube_id)
 
     def _publish_image(self):
         """
