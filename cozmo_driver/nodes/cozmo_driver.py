@@ -136,20 +136,20 @@ class CozmoRos(object):
         # self.cube_locations = {1:[-0.275, -0.275, -np.pi/2], 2:[0.275, 0.0, 0.0], 3:[-0.275, 0.275, np.pi/2]} 
         print('namespace: ', self.ns)
         if self.ns == '/cozmo0':
-            self.cube_locations = {0:[-0.19, -0.128, 0], 
-                                   1:[-0.075, 0.21, 0], 
-                                   2:[0.21, 0.028, 0], 
-                                   3:[0, 0, 0]} 
+            self.cube_locations = {0:[0.13, 0.07, 0], 
+                                   2:[-0.12, 0.07, 0], 
+                                   1:[-0.12, -0.18, 0], 
+                                   3:[0.13, -0.245, 0]} 
         if self.ns == '/cozmo1':
-            self.cube_locations = {0:[-0.19, -0.128, 0], 
-                                   1:[-0.075, 0.21, 0], 
-                                   2:[0.21, 0.028, 0], 
-                                   3:[0, 0, 0]} 
+            self.cube_locations = {0:[0.13, 0.07, 0], 
+                                   1:[-0.12, 0.07, 0], 
+                                   2:[-0.12, -0.18, 0], 
+                                   3:[0.13, -0.245, 0]} 
         if self.ns == '/cozmo2':
-            self.cube_locations = {0:[-0.19, -0.128, 0], 
-                                   1:[-0.075, 0.21, 0], 
-                                   2:[0.21, 0.028, 0], 
-                                   3:[0, 0, 0]}  
+            self.cube_locations = {0:[0.13, 0.07, 0], 
+                                   2:[-0.12, 0.07, 0], 
+                                   1:[-0.12, -0.18, 0], 
+                                   3:[0.13, -0.245, 0]} 
         print('cube locations: ', self.cube_locations)
 
         self.cube_frames = {0:'cube0', 1:'cube1', 2:'cube2', 3:'stacked_cubes'}
@@ -276,7 +276,9 @@ class CozmoRos(object):
             self._last_seen_cube_id = obj.object_id
         if self.cubes_visible is 2:
             self._last_seen_cube_id = 3
-        print('I see cube ', self._last_seen_cube_id)
+        
+        # if self.cubes_visible>0:
+            # print('I see cube ', self._last_seen_cube_id)
 
     def _publish_image(self):
         """

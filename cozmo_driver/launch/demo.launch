@@ -2,7 +2,7 @@
 
   <!-- ARGUMENTS -->
   <arg name="use_cozmo0"      default="true"  />  
-  <arg name="use_cozmo1"      default="false"  />
+  <arg name="use_cozmo1"      default="true"  />
   <arg name="use_cozmo2"      default="false"  />
 
   <arg name="serial_cozmo0"   default="04a367ee13afda5a" /> <!-- 04e0d4110a65c4ee -->
@@ -11,7 +11,7 @@
 
 
   <arg name="use_prm"         default="false"  />
-  <arg name="use_mrdrrt"      default="false" />
+  <arg name="use_mrdrrt"      default="true" />
 
   <arg name="use_joy" default="false"            />
   <arg name="joy_dev" default="/dev/input/js0"  />
@@ -71,8 +71,8 @@
   
 
   <!-- Planners -->
-  
   <node if="$(arg use_mrdrrt)" pkg="mrdrrt" type="mrdrrt_node.py" name="mrdrrt_node" output="screen" />
+
 
   <!--  INPUT  -->
 
