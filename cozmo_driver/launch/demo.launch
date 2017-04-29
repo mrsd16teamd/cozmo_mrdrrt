@@ -32,6 +32,10 @@
     </node>
 
     <node if="$(arg use_prm)" pkg="mrdrrt" type="prm_node.py" name="prm_node" output="screen" />
+
+    <node pkg="robot_localization" type="ekf_localization_node" name="ekf_se" clear_params="true">
+      <rosparam command="load" file="$(find robot_localization)/params/cozmo0_ekf.yaml" />
+    </node>
   </group>
  
  <group if="$(arg use_cozmo1)" ns="cozmo1">
@@ -51,7 +55,7 @@
     <node if="$(arg use_prm)" pkg="mrdrrt" type="prm_node.py" name="prm_node" output="screen" />
 
     <node pkg="robot_localization" type="ekf_localization_node" name="ekf_se" clear_params="true">
-      <rosparam command="load" file="$(find robot_localization)/params/cozmo_ekf.yaml" />
+      <rosparam command="load" file="$(find robot_localization)/params/cozmo1_ekf.yaml" />
     </node>
   </group>
 
@@ -70,7 +74,10 @@
       <param name="camera_info_url" value="file://$(find cozmo_driver)/config/cozmo_camera.yaml" />
     </node>
 
-    <node if="$(arg use_prm)" pkg="mrdrrt" type="prm_node.py" name="prm_node" output="screen" /<name />
+    <node if="$(arg use_prm)" pkg="mrdrrt" type="prm_node.py" name="prm_node" output="screen" />
+    <node pkg="robot_localization" type="ekf_localization_node" name="ekf_se" clear_params="true">
+      <rosparam command="load" file="$(find robot_localization)/params/cozmo2_ekf.yaml" />
+    </node>
   </group> -->
   
 
