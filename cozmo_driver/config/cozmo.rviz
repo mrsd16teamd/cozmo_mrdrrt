@@ -7,6 +7,7 @@ Panels:
         - /Status1
         - /TF1
         - /TF1/Frames1
+        - /Cozmo1
         - /Pose1
         - /Pose2
       Splitter Ratio: 0.642442
@@ -62,11 +63,15 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: false
+        abT:
+          Value: true
         cozmo0/base_footprint:
           Value: false
         cozmo0/base_link:
           Value: true
         cozmo0/camera_link:
+          Value: false
+        cozmo0/cozmo_camera:
           Value: false
         cozmo0/head_link:
           Value: false
@@ -78,22 +83,18 @@ Visualization Manager:
           Value: true
         cozmo1/camera_link:
           Value: false
+        cozmo1/cozmo_camera:
+          Value: false
         cozmo1/head_link:
           Value: false
         cozmo1/odom:
           Value: false
-        cozmo_camera:
-          Value: false
-        cube0:
-          Value: true
-        cube1:
-          Value: true
-        cube2:
+        heart:
           Value: true
         map:
           Value: true
-        stacked_cubes:
-          Value: false
+        paperclip:
+          Value: true
       Marker Scale: 0.2
       Name: TF
       Show Arrows: false
@@ -101,26 +102,25 @@ Visualization Manager:
       Show Names: true
       Tree:
         map:
+          abT:
+            {}
           cozmo0/odom:
             cozmo0/base_footprint:
               cozmo0/base_link:
                 cozmo0/head_link:
                   cozmo0/camera_link:
-                    cozmo_camera:
+                    cozmo0/cozmo_camera:
                       {}
           cozmo1/odom:
             cozmo1/base_footprint:
               cozmo1/base_link:
                 cozmo1/head_link:
                   cozmo1/camera_link:
-                    {}
-          cube0:
+                    cozmo1/cozmo_camera:
+                      {}
+          heart:
             {}
-          cube1:
-            {}
-          cube2:
-            {}
-          stacked_cubes:
+          paperclip:
             {}
       Update Interval: 0
       Value: true
@@ -308,5 +308,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1215
-  X: 65
-  Y: 24
+  X: 55
+  Y: 14

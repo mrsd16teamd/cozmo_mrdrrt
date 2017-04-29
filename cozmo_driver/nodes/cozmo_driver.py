@@ -119,7 +119,10 @@ class CozmoRos(object):
         self._lift_sub = rospy.Subscriber('lift_height', Float64, self._move_lift, queue_size=1)
 
         self._path_sub = rospy.Subscriber('path', Path, self.path_callback, queue_size=1)
-        # self._goal_sub = rospy.Subscriber('goal', PoseStamped, self.goal_callback, queue_size=3) # being used in PRM
+        
+        self.use_prm = rospy.get_param('~use_prm', False)
+        if not (self.use_prm):
+            self._goal_sub = rospy.Subscriber('goal', PoseStamped, self.goal_callback, queue_size=3) # being used in PRM
 
         # camera info manager
         self._camera_info_manager.setURL(camera_info_url)
@@ -127,32 +130,38 @@ class CozmoRos(object):
 
         # move head to horizontal position
         cmd = Float64()
-        cmd.data = 0
+        cmd.data = -10
         self._move_head(cmd)
 
         # Define cube positions. Make location empty list if not using 
         # 1: paperclip,  2: looks like a 'b',  3: 'o' with an arm,
         # self.cube_locations = {1:[], 2:[0.0, 0.0, 0.0], 3:[]} 
         # self.cube_locations = {1:[-0.275, -0.275, -np.pi/2], 2:[0.275, 0.0, 0.0], 3:[-0.275, 0.275, np.pi/2]} 
+        self.cube_frames = {1:'abT', 2:'heart', 3:'paperclip'}
+        self.cube_locations = {1:[0.13, 0.07, 0], 
+                               2:[-0.12, 0.07, 0], 
+                               3:[-0.12, -0.18, 0]} 
+
         print('namespace: ', self.ns)
         if self.ns == '/cozmo0':
-            self.cube_locations = {0:[0.13, 0.07, 0], 
-                                   2:[-0.12, 0.07, 0], 
-                                   1:[-0.12, -0.18, 0], 
-                                   3:[0.13, -0.245, 0]} 
+            self.cube_mappings = {0:1,
+                                  1:1, 
+                                  2:3, 
+                                  3:2} 
+                                    
         if self.ns == '/cozmo1':
-            self.cube_locations = {0:[0.13, 0.07, 0], 
-                                   1:[-0.12, 0.07, 0], 
-                                   2:[-0.12, -0.18, 0], 
-                                   3:[0.13, -0.245, 0]} 
+            self.cube_mappings = {1:2, 
+                                  2:3, 
+                                  3:1} 
+                                    
         if self.ns == '/cozmo2':
-            self.cube_locations = {0:[0.13, 0.07, 0], 
-                                   2:[-0.12, 0.07, 0], 
-                                   1:[-0.12, -0.18, 0], 
-                                   3:[0.13, -0.245, 0]} 
+            self.cube_mappings = {1:1, 
+                                  2:2, 
+                                  3:3} 
+
         print('cube locations: ', self.cube_locations)
 
-        self.cube_frames = {0:'cube0', 1:'cube1', 2:'cube2', 3:'stacked_cubes'}
+        
 
         self.say("what is my purpose?")
 
@@ -168,7 +177,7 @@ class CozmoRos(object):
 
     def turnInPlace(self, angle):
         angle = cozmo.util.radians(angle)
-        action = self._cozmo.turn_in_place(angle, num_retries=1, in_parallel=False)
+        action = self._cozmo.turn_in_place(angle, num_retries=0, in_parallel=False)
         print("Cozmo {}: \tTurning in place by {}".format(self.robot_id, angle))
         action.wait_for_completed()
 
@@ -221,6 +230,7 @@ class CozmoRos(object):
             self.say("Let's go!")
         self.goal = goal
         self.goal_received = 1
+
         # self.say("okay")
 
     def path_callback(self, path):
@@ -252,7 +262,7 @@ class CozmoRos(object):
         :param  msg:    The text message to say.
         """
         # self._cozmo.say_text(msg.data, in_parallel=True, use_cozmo_voice=False)
-        self._cozmo.say_text(msg.data, in_parallel=True, use_cozmo_voice=True, voice_pitch=-1.0).wait_for_completed()
+        self._cozmo.say_text(msg.data, in_parallel=True, use_cozmo_voice=True, voice_pitch=1.0).wait_for_completed()
 
     def say(self, phrase):
         to_say = String()
@@ -266,6 +276,8 @@ class CozmoRos(object):
         """
         self.cubes_visible = 0
         for obj in self._cozmo.world.visible_objects:
+            # print('Cozmo: {}\tI see cube {}'.format(self.robot_id, obj.object_id))
+            # if obj.object_id is not 0: #Cozmo SDK sometimes returns an object_id of 0 when it shouldn't, so ignore it.
             self.cubes_visible += 1
             now = rospy.Time.now()
             x = obj.pose.position.x * 0.001
@@ -275,8 +287,7 @@ class CozmoRos(object):
             q = (obj.pose.rotation.q1, obj.pose.rotation.q2, obj.pose.rotation.q3, obj.pose.rotation.q0)
             self._last_seen_cube_pose = [(x,y,z),q,now]
             self._last_seen_cube_id = obj.object_id
-        if self.cubes_visible is 2:
-            self._last_seen_cube_id = 3
+        
         
         # if self.cubes_visible>0:
             # print('I see cube ', self._last_seen_cube_id)
@@ -300,7 +311,7 @@ class CozmoRos(object):
             ros_img.height = img.size[1]
             ros_img.step = ros_img.width
             ros_img.data = img.tobytes()
-            ros_img.header.frame_id = 'cozmo_camera'
+            ros_img.header.frame_id = self.ns+'/cozmo_camera'
             cozmo_time = camera_image.image_recv_time
             ros_img.header.stamp = rospy.Time.from_sec(cozmo_time)
             # publish images and camera info
@@ -506,7 +517,7 @@ class CozmoRos(object):
         # print(cube_id)
         # print(self.cube_locations[cube_id])
 
-        T_worldToCube = poseToTransformation(self.cube_locations[cube_id][0], self.cube_locations[cube_id][1], self.cube_locations[cube_id][2])
+        T_worldToCube = poseToTransformation(self.cube_locations[self.cube_mappings[cube_id]][0], self.cube_locations[self.cube_mappings[cube_id]][1], self.cube_locations[self.cube_mappings[cube_id]][2])
         T_cubeToWorld = np.linalg.inv(T_worldToCube)
         T_worldToOdom = np.linalg.inv(np.dot(T_odomToCube, T_cubeToWorld))
 
@@ -563,16 +574,16 @@ class CozmoRos(object):
         dist2goal = np.linalg.norm(np.array([dx, dy]))
 
         d_theta = wrapToPi(math.atan2((goal_y-y),(goal_x-x)) - th)
-
+        dist = math.sqrt(math.pow(goal_x-x,2) + math.pow(goal_y-y,2))
         # print("Now at: x={}, y={}, th={} ".format(x,y,th))
         # print("Going to: x={}, y={}, th={} ".format(goal_x,goal_y,goal_th))
         # print("Distance: x={}, y={}, th={}, norm={}".format(dx,dy,dth, dist2goal))
-
-        self.turnInPlace(d_theta) #turn towards goal, anglesinrad
-        dist = math.sqrt(math.pow(goal_x-x,2) + math.pow(goal_y-y,2))
-        self.driveStraight(dist)
-        self.turnInPlace(wrapToPi(goal_th - (th + d_theta)))
-        
+        if dist > 0.03:
+            self.turnInPlace(d_theta) #turn towards goal, anglesinrad
+            self.driveStraight(dist)
+            self.turnInPlace(wrapToPi(goal_th - (th + d_theta)))
+        else:
+            print("Cozmo {}: \tclose enough".format(self.robot_id))
 
         endPose = self.getWorldPose()
         print("Cozmo {}: \tEnded up at: {}".format(self.robot_id, endPose))
