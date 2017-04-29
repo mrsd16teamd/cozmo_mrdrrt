@@ -1,0 +1,5 @@
+<launch> 
+  <node pkg="rviz" type="rviz" name="rviz"
+        args="-d $(find cozmo_driver)/config/cozmo.rviz"
+        output="screen" />
+</launch>
