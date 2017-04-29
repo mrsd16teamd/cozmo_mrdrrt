@@ -38,7 +38,7 @@ from cozmo.util import radians
 
 # ROS
 import rospy
-from transformations import quaternion_from_euler, quaternion_matrix, quaternion_from_matrix, euler_from_quaternion, euler_from_matrix, wrapToPi, poseToTransformation
+from transformations import *
 from camera_info_manager import CameraInfoManager
 from transform_broadcaster import TransformBroadcaster
 
@@ -119,7 +119,7 @@ class CozmoRos(object):
         self._lift_sub = rospy.Subscriber('lift_height', Float64, self._move_lift, queue_size=1)
 
         self._path_sub = rospy.Subscriber('path', Path, self.path_callback, queue_size=1)
-        self._goal_sub = rospy.Subscriber('goal', PoseStamped, self.goal_callback, queue_size=1) # being used in PRM
+        # self._goal_sub = rospy.Subscriber('goal', PoseStamped, self.goal_callback, queue_size=3) # being used in PRM
 
         # camera info manager
         self._camera_info_manager.setURL(camera_info_url)
@@ -271,6 +271,7 @@ class CozmoRos(object):
             x = obj.pose.position.x * 0.001
             y = obj.pose.position.y * 0.001
             z = obj.pose.position.z * 0.001
+            z = 0.0
             q = (obj.pose.rotation.q1, obj.pose.rotation.q2, obj.pose.rotation.q3, obj.pose.rotation.q0)
             self._last_seen_cube_pose = [(x,y,z),q,now]
             self._last_seen_cube_id = obj.object_id
@@ -367,7 +368,7 @@ class CozmoRos(object):
             battery.power_supply_status = BatteryState.POWER_SUPPLY_STATUS_NOT_CHARGING
         self._battery_pub.publish(battery)
 
-    def _publish_odometry(self):
+    def _publish_odometry(self, x,y,th):
         """
         Publish current pose as Odometry message.
         """
@@ -377,22 +378,29 @@ class CozmoRos(object):
 
         now = rospy.Time.now()
         self.odom = Odometry()
-        self.odom.header.frame_id = self._odom_frame
+        # self.odom.header.frame_id = self._odom_frame
+        self.odom.header.frame_id = self._world_frame
         self.odom.header.stamp = now
         self.odom.child_frame_id = self._footprint_frame
-        self.odom.pose.pose.position.x = self._cozmo.pose.position.x * 0.001
-        self.odom.pose.pose.position.y = self._cozmo.pose.position.y * 0.001
-        self.odom.pose.pose.position.z = self._cozmo.pose.position.z * 0.001
-        q = quaternion_from_euler(.0, .0, self._cozmo.pose_angle.radians)
+        # self.odom.pose.pose.position.x = self._cozmo.pose.position.x * 0.001
+        # self.odom.pose.pose.position.y = self._cozmo.pose.position.y * 0.001
+        # self.odom.pose.pose.position.z = self._cozmo.pose.position.z * 0.001
+        self.odom.pose.pose.position.x = x
+        self.odom.pose.pose.position.y = y
+        self.odom.pose.pose.position.z = 0
+        # q = quaternion_from_euler(.0, .0, self._cozmo.pose_angle.radians)
+        q = quaternion_from_euler(.0, .0, th)
         self.odom.pose.pose.orientation.x = q[0]
         self.odom.pose.pose.orientation.y = q[1]
         self.odom.pose.pose.orientation.z = q[2]
         self.odom.pose.pose.orientation.w = q[3]
-        self.odom.pose.covariance = np.diag([1e-2, 1e-2, 1e-2, 1e3, 1e3, 1e-1]).ravel()
-        self.odom.twist.twist.linear.x = self._lin_vel
-        self.odom.twist.twist.angular.z = self._ang_vel
-        self.odom.twist.covariance = np.diag([1e-2, 1e3, 1e3, 1e3, 1e3, 1e-2]).ravel()
+        self.odom.pose.covariance = np.diag([2e-1, 2e-1, 1e-2, 1e-3, 1e-3, 2e-1]).ravel()
+        # self.odom.twist.twist.linear.x = self._lin_vel
+        # self.odom.twist.twist.angular.z = self._ang_vel
+        # self.odom.twist.covariance = np.diag([1e-2, 1e3, 1e3, 1e3, 1e3, 1e-2]).ravel()
         self._odom_pub.publish(self.odom)
+
+
 
     def _publish_tf(self, update_rate):
         """
@@ -419,8 +427,8 @@ class CozmoRos(object):
                 worldToOdom = self.getWorldtoOdomTransform() #takes in robotToWorld and OdomToRobot and returns WorldToOdom
                 q = worldToOdom[2]
                 now = rospy.Time.now()
-                self._tfb.send_transform(
-                    (worldToOdom[0], worldToOdom[1], 0.0), q, now, self._odom_frame, self._world_frame)
+                # self._tfb.send_transform(
+                    # (worldToOdom[0], worldToOdom[1], 0.0), q, now, self._odom_frame, self._world_frame)
 
                 self.last_worldToOdom = worldToOdom
             
@@ -428,8 +436,8 @@ class CozmoRos(object):
                 worldToOdom = self.last_worldToOdom
                 q = worldToOdom[2]
                 now = rospy.Time.now()
-                self._tfb.send_transform(
-                    (worldToOdom[0], worldToOdom[1], 0.0), q, now, self._odom_frame, self._world_frame)
+                # self._tfb.send_transform(
+                    # (worldToOdom[0], worldToOdom[1], 0.0), q, now, self._odom_frame, self._world_frame)
 
         else:
             q = quaternion_from_euler(.0, .0, .0)
@@ -525,6 +533,8 @@ class CozmoRos(object):
         x = T_worldToRobot[0][3]
         y = T_worldToRobot[1][3]
 
+        self._publish_odometry(x,y, th)
+
         return x, y, th
 
     def goToWaypoint(self, waypoint):
@@ -562,6 +572,7 @@ class CozmoRos(object):
         dist = math.sqrt(math.pow(goal_x-x,2) + math.pow(goal_y-y,2))
         self.driveStraight(dist)
         self.turnInPlace(wrapToPi(goal_th - (th + d_theta)))
+        
 
         endPose = self.getWorldPose()
         print("Cozmo {}: \tEnded up at: {}".format(self.robot_id, endPose))
@@ -590,7 +601,8 @@ class CozmoRos(object):
         self._publish_joint_state()
         self._publish_imu()
         self._publish_battery()
-        self._publish_odometry()
+        self.getWorldPose()
+        # self._publish_odometry()
 
     def run(self, update_rate=60):
         """
