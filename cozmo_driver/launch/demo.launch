@@ -1,13 +1,13 @@
 <launch>
 
   <!-- ARGUMENTS -->
-  <arg name="use_cozmo0"      default="true"  />  
-  <arg name="use_cozmo1"      default="true"  />
-  <arg name="use_cozmo2"      default="false"  />
+  <arg name="use_cozmo0"      default="false"  />  
+  <arg name="use_cozmo1"      default="false"  />
+  <arg name="use_cozmo2"      default="true"  />
 
   <arg name="serial_cozmo0"   default="04a367ee13afda5a" /> <!--Nexus 5 tagged with Cozmo441CC9: 04a367ee13afda5a-->
-  <arg name="serial_cozmo1"   default="03ba89fb437e9402" /> <!-- Nexus5 tagged with Cozmo3114C8: 03ba89fb437e9402--><!--Sid's Moto G4: ZY223BMTVP-->
-  <arg name="serial_cozmo2"   default="fill_later" /> <!-- 04e0d4110a65c4ee -->
+  <arg name="serial_cozmo1"   default="03ba89fb437e9402" /> <!-- Nexus5 tagged with Cozmo3114C8: 03ba89fb437e9402-->
+  <arg name="serial_cozmo2"   default="ZY223BMTVP" /> <!--Sid's Moto G4: ZY223BMTVP tagged with Cozmo311796-->
 
 
   <arg name="use_prm"         default="false"  />
@@ -63,11 +63,11 @@
   </group>
 
  <!-- FILL IN SERIAL_PORT BEFORE ENABLING -->
- <!-- <group if="$(arg use_cozmo2)" ns="cozmo2">
+ <group if="$(arg use_cozmo2)" ns="cozmo2">
     <node 
           pkg="cozmo_driver" type="cozmo_driver.py" name="cozmo_driver_node"
           output="screen" >
-      <param name="serial_port" value="~" />
+      <param name="serial_port" value="$(arg serial_cozmo2)" />
       <param name="use_prm" value='$(arg use_prm)' />
       <param name="odom_frame" value="cozmo2/odom" />
       <param name="footprint_frame" value="cozmo2/base_footprint" />
@@ -83,7 +83,7 @@
     <node pkg="robot_localization" type="ekf_localization_node" name="ekf_se" clear_params="true">
       <rosparam command="load" file="$(find robot_localization)/params/cozmo2_ekf.yaml" />
     </node>
-  </group> -->
+  </group>
   
 
   <!-- Planners -->

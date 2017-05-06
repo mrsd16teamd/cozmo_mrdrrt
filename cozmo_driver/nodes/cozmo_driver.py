@@ -86,6 +86,8 @@ class CozmoRos(object):
             self.last_worldToOdom = [-0.15, -0.05, np.array([0,0,0,1])]
         elif self.robot_id is 1:
             self.last_worldToOdom = [0.15, -0.05, quaternion_from_euler(0,0,np.pi)]
+        elif self.robot_id is 2:
+            self.last_worldToOdom = [0.0, 0.15, quaternion_from_euler(0,0,-np.pi/2)]
         # tf
         self._tfb = TransformBroadcaster()
 
@@ -130,7 +132,7 @@ class CozmoRos(object):
 
         # move head to horizontal position
         cmd = Float64()
-        cmd.data = -10
+        cmd.data = -10.0
         self._move_head(cmd)
 
         # Define cube positions. Make location empty list if not using 
@@ -144,15 +146,14 @@ class CozmoRos(object):
 
         print('namespace: ', self.ns)
         if self.ns == '/cozmo0':
-            self.cube_mappings = {0:1,
-                                  1:1, 
-                                  2:3, 
-                                  3:2} 
+            self.cube_mappings = {1:2, 
+                                  2:1, 
+                                  3:3} 
                                     
         if self.ns == '/cozmo1':
-            self.cube_mappings = {1:2, 
-                                  2:3, 
-                                  3:1} 
+            self.cube_mappings = {1:3, 
+                                  2:1, 
+                                  3:2} 
                                     
         if self.ns == '/cozmo2':
             self.cube_mappings = {1:1, 
@@ -160,10 +161,6 @@ class CozmoRos(object):
                                   3:3} 
 
         print('cube locations: ', self.cube_locations)
-
-        
-
-        self.say("what is my purpose?")
 
         #Set backpack color to uniquely identify cozmo #
         color_map = {0:[255, 0, 0, 1], 1:[0, 255, 0, 1], 2:[0, 0, 255, 1]} #cozmo1 is red, cozmo2 is green, cozmo3 is blue
@@ -175,13 +172,30 @@ class CozmoRos(object):
         self._cozmo.set_all_backpack_lights(light)
 
 
+
+        
+
+        #custom start sequence for kicks
+        # cmd = Float64()
+        # cmd.data = 44.0
+        # self._move_head(cmd)
+        # self.say("what is my purpose?")
+        # sleep(1)
+        # self.say("oh, god...")
+        # self._cozmo.say_text("NO!", in_parallel=True, use_cozmo_voice=True, voice_pitch=1.0)
+        # self._cozmo.play_anim_trigger(cozmo.anim.Triggers.PeekABooGetOutSad, in_parallel=True).wait_for_completed()
+        # cmd = Float64()
+        # cmd.data = -25.0
+        # self._move_head(cmd)
+
+
     def turnInPlace(self, angle):
         angle = cozmo.util.radians(angle)
-        action = self._cozmo.turn_in_place(angle, num_retries=0, in_parallel=False)
+        action = self._cozmo.turn_in_place(angle, num_retries=5, in_parallel=False)
         print("Cozmo {}: \tTurning in place by {}".format(self.robot_id, angle))
         action.wait_for_completed()
 
-    def driveStraight(self, dist, speed=0.15):
+    def driveStraight(self, dist, speed=0.025):
         dist = dist*1000 #convert to mm
         speed = speed*1000
         dist = cozmo.util.distance_mm(dist)
@@ -262,7 +276,7 @@ class CozmoRos(object):
         :param  msg:    The text message to say.
         """
         # self._cozmo.say_text(msg.data, in_parallel=True, use_cozmo_voice=False)
-        self._cozmo.say_text(msg.data, in_parallel=True, use_cozmo_voice=True, voice_pitch=1.0).wait_for_completed()
+        self._cozmo.say_text(msg.data, in_parallel=True, use_cozmo_voice=True, voice_pitch=0.0).wait_for_completed()
 
     def say(self, phrase):
         to_say = String()
@@ -578,7 +592,7 @@ class CozmoRos(object):
         # print("Now at: x={}, y={}, th={} ".format(x,y,th))
         # print("Going to: x={}, y={}, th={} ".format(goal_x,goal_y,goal_th))
         # print("Distance: x={}, y={}, th={}, norm={}".format(dx,dy,dth, dist2goal))
-        if dist > 0.03:
+        if dist > 0.00:
             self.turnInPlace(d_theta) #turn towards goal, anglesinrad
             self.driveStraight(dist)
             self.turnInPlace(wrapToPi(goal_th - (th + d_theta)))
@@ -605,7 +619,7 @@ class CozmoRos(object):
         self.waypoints = []
 
 
-    def update_state(self, update_rate=60):
+    def update_state(self, update_rate=30):
         self._publish_tf(update_rate)
         self._publish_image()
         self._log_objects()
@@ -615,7 +629,7 @@ class CozmoRos(object):
         self.getWorldPose()
         # self._publish_odometry()
 
-    def run(self, update_rate=60):
+    def run(self, update_rate=30):
         """
         Publish data continuously with given rate.
         :type   update_rate:    int
