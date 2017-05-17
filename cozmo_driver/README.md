@@ -1,6 +1,6 @@
 # cozmo driver for ROS
 
-This is **unofficial** ROS node for Anki cozmo.
+This is **unofficial** ROS node for Anki cozmo, copied from https://github.com/OTL/cozmo_driver
 
 ## Requirements
 
